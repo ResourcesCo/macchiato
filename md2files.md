@@ -259,13 +259,13 @@ export function readInlineStrings(line) {
   return result;
 }
 
-export async function md2files() {
+export async function md2files(input = Deno.stdin, open = Deno.open) {
   let file = undefined;
   let nextFile = undefined;
   let fence = undefined;
   let lastLineEmpty = false;
   const encoder = new TextEncoder('utf8');
-  for await (const line of readLines(Deno.stdin)) {
+  for await (const line of readLines(input)) {
     if (nextFile) {
       if (line.trim() === '') {
         file = nextFile;
@@ -291,16 +291,20 @@ export async function md2files() {
           const filename = inlineStrings[0]
           nextFile = {
             filename,
+            gap: { lines: 0, chars: 0 },
           };
         }
       }
       if (codeFenceRegexp.test(line)) {
         const match = codeFenceRegexp.exec(line);
         fence = match[1];
-        if (file) {
-          file.file = await Deno.open(file.filename, {write: true, create: true});
+        if (file && file.gap.lines <= 20 && file.gap.chars <= 1024) {
+          file.file = await open(file.filename, {write: true, create: true});
           file.buffer = BufWriter.create(file.file);
         }
+      } else if (file) {
+        file.gap.lines += 1;
+        file.gap.chars += line.length;
       }
       lastLineEmpty = line.trim() === '';
     }
