@@ -46,7 +46,13 @@ Alas, installing this gets an error:
 Unzip isn't installed. Let's install that.
 
 [dnf](https://docs.fedoraproject.org/en-US/quick-docs/dnf/) is the package
-manager for Fedora. Like with other package managers, you can search for
+manager for Fedora. First, let's do an upgrade:
+
+```bash
+dnf upgrade -y
+```
+
+Like with other package managers, you can search for
 things and install them.
 
 ```bash
@@ -58,10 +64,8 @@ This will show that the package is, indeed, called `unzip`.
 Run this to install it:
 
 ```bash
-dnf install unzip
+dnf install -y unzip
 ```
-
-This will ask to confirm. You can skip it by passing `-y`.
 
 Now try running the command to install Deno from the
 [Deno README](https://github.com/denoland/deno#install) again:
@@ -188,7 +192,24 @@ async function setupSshSudoUser(username: string) {
     `${username}:${username}`,
     `/home/${username}/.ssh/authorized_keys`,
   ]);
-  await run(`groupmod -aG ${username} wheel`);
+  await run(['usermod', '-aG', 'wheel', username]);
+  const installDeno = 'curl -fsSL https://deno.land/x/install/install.sh | sh';
+  await sudo(username, ['sh', '-c', installDeno]);
+  const path = `/home/${username}/.bashrc`;
+  const codeToAppend = `
+export DENO_INSTALL="/home/${username}/.deno"
+export PATH="$DENO_INSTALL/bin:$PATH"
+`;
+  await Deno.writeTextFile(path, codeToAppend, {append: true});
+  console.log(`
+To make it possible to log in with simply "ssh ${username}", add this
+to ~/.ssh/config on your local machine, replacing "myhost.example.com"
+with your server's hostname or IP address:
+
+Host macchiato${username === 'macchiato' ? '' : `-${username}`}
+  Hostname myhost.example.com
+  User ${username}
+`);
 }
 
 if (import.meta.main) {
@@ -202,6 +223,69 @@ if (import.meta.main) {
 }
 ```
 
+Now, review the above code, and run this:
+
 ```bash
-deno run --allow-run setup-ssh-sudo-user.ts macchiato
+deno run --allow-run --allow-write=/home/macchiato/.bashrc \
+  setup-ssh-sudo-user.ts macchiato
 ```
+
+A script with `--allow-run` can run any process the user running deno
+can, so it is important to be careful with it.
+
+Follow the directions from the above command to add the host to your
+`~/.ssh/config` on your local machine.
+
+Generate a random password for the macchiato user and save it on
+your local machine using a password manager. Make sure it's easy to
+retrieve when you need to run `sudo` on the server. Then set the
+password for your new user by running this command and pasting the
+password twice:
+
+```bash
+passwd macchiato
+```
+
+You can log out now, and run future commands with `sudo` after
+logging in as your regular user.
+
+Then, on your local machine, ssh in as your new user:
+
+```bash
+ssh macchiato
+```
+
+Confirm that you can run `deno` and that you can run `sudo whoami`.
+
+## Step 4: install some packages
+
+Now, install some packages, including podman, which we'll use to
+run containers:
+
+```bash
+sudo dnf install -y git podman
+```
+
+## Step 5: clone the repository
+
+```bash
+mkdir ~/macchiato
+cd ~/macchiato
+git clone https://github.com/ResourcesCo/macchiato.git
+```
+
+## Next steps
+
+Here we ran code that was embedded in Markdown. There is a tool here
+that makes that more convenient, by creating files from a Markdown file.
+
+If the repository was cloned, this will be in
+`~/macchiato/macchiato/docs/md2files.md`. It should be the same as
+following the link here: [md2files]('./md2files.md')
+
+This will be used to run the scripts to set up PostgreSQL and run
+gitea and caddy in containers, which will make it possible to log in
+using a web browser, and review and run code directly from Markdown
+documents like this one.
+
+Go to [md2files]('./md2files.md') to review, test, and install `md2files`.
