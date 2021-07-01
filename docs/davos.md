@@ -15,7 +15,7 @@
 The actions are run with Deno (`$WORKDIR` is the task directory):
 
 ```bash
-deno run --allow-read=$WORKDIR --allow-write=$WORKDIR \
+cd $WORKDIR && deno run --allow-read=$WORKDIR --allow-write=$WORKDIR \
   --allow-run --cached-only --lock=$XDG_DATA_HOME/actions/request/lock.json \
   $XDG_DATA_HOME/actions/request/mod.ts
 ```
