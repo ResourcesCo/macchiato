@@ -1,4 +1,4 @@
-# macchiato-unpack-simple
+# unpack-simple
 
 *Unpack data from a Markdown notebook*
 
@@ -19,8 +19,8 @@ It is recommended to use this version unless you need more features. It is
 designed so you can inspect the Markdown and be confident that you know
 exactly what code will be generated from it.
 
-Files are created from a *file definition*, a fenced code block, and
-optionally a fenced code block containing some options.
+Files are created from a *file definition*, an optional fenced code block
+containing some options, and a fenced code block containing the data.
 
 A file definition is a level 5 heading block containing an inline code block
 with the relative path, either as a plain string or a JSON string (enclosed
@@ -35,16 +35,15 @@ in double quotes):
 ```
 
 After that, the next one or two fenced code blocks are used, for the options,
-and for the content of the file. If the contents of the first fenced code block
-is a JSON array with the first string value equal to `"$options"`, it will be
-read as the options, and the content will be read from the following fenced
-code block. Otherwise, the first, and only, fenced code block will be used as
-the content.
+and for the content of the file. If the first fenced code block is a JSON
+array with the first string value equal to `"$options"`, it will be used as
+the options, and the content will be read from the following fenced code
+block. Otherwise, the first fenced code block will be used as the content.
 
-The file definition and the fenced code blocks can only be separated by up to
-10 lines, with up to a total of 1024 characters. Each non-empty line must not
-start with any whitespace. This way, short notes can be added, but the code
-and filename, so the output is unobfuscated.
+These elements can only be separated by up to 10 lines, with up to a total
+of 1024 characters. Each non-empty line must not start with any whitespace.
+This way, short notes can be added, but the path to the file and the file
+contents will appear close together, to prevent obfuscation.
 
 The file definition can be followed by a fenced code block containing a JSON
 configuration object, like this:
@@ -60,8 +59,10 @@ The options available are:
   otherwise false. Defaults to true.
 - `eol` - the end of line to use. can be `"crlf"` or `"lf"`.
 
-There can also be no options. This way, it is also possible to store the
-same data used for an options block as the contents of the file.
+There can also be an empty options value. This way, it is also possible to
+store the same data used for an options block as the contents of the file,
+by providing two code blocks that contain a JSON array with with the
+string `"$options"` as its first element.
 
 A `--stream` option is available. If given, it will stream the output, and if
 an error occurs during the middle of processing it, the file changes already
@@ -75,20 +76,20 @@ in the tests.
 ##### `test/deno-basic.md`
 
 `````md
-`hello.txt`
+##### `hello.txt`
 
 ```
 Hello, world.
 ```
 
-`hello.ts`
+##### `hello.ts`
 
 ```js
 const text = await Deno.readTextFile()
 console.log(text)
 ```
 
-`README.md`
+##### `README.md`
 
 This runs Deno.
 
@@ -107,9 +108,9 @@ Note that more than three backquotes can be used to start a fenced code
 block as long as the same number is used to end it. The above example uses
 this technique.
 
-Inline code blocks may also use more than one backquote, so the string
-may contain a backquote. This is supported by `macchiato-unpack-simple`,
-even though backquotes in filenames are rare.
+Inline code blocks may also use a variable number of backquotes, so the
+string may contain a backquote. This is supported by
+`macchiato-unpack-simple`, even though backquotes in filenames are rare.
 
 ## Implementation
 
@@ -134,7 +135,8 @@ The current file is then set and the file is opened for writing.
 ```js
 import {
   readLines,
-  BufWriter
+  BufWriter,
+  Buffer
 } from "https://deno.land/std@0.100.0/io/mod.ts";
 import { ensureDir } from "https://deno.land/std@0.100.0/fs/mod.ts";
 import { dirname } from "https://deno.land/std@0.100.0/path/mod.ts";
@@ -190,7 +192,10 @@ type ToBinaryMap = {
   [key: string]: ToBinaryFunction
 }
 
-export async function unpack(input = Deno.stdin, open = Deno.open) {
+export async function unpack(stream: boolean = false): Promise<{ [path: string]: Uint8Array } | undefined> {
+  const input = Deno.stdin;
+  const open = Deno.open;
+  const result: { [path: string]: Uint8Array } = {};
   let file = undefined;
   let fence = undefined;
   let gap = 0;
@@ -238,25 +243,37 @@ export async function unpack(input = Deno.stdin, open = Deno.open) {
             file.preLine = '';
           } else {
             if (!file.writing) {
-              await file.buffer.write(file.toBinary(file.data));
+              await file.writer.write(file.toBinary(file.data));
               file.data = '';
               file.writing = true;
             }
             if (file.options.newline) {
-              file.buffer.write(file.toBinary(file.options.eol));
+              file.writer.write(file.toBinary(file.options.eol));
             }
-            await file.buffer.flush();
-            await file.file.close();
+            if (file.file && file.bufWriter) {
+              await file.bufWriter.flush();
+              await file.file.close();
+            } else if (file.buffer) {
+              const bufLength = file.buffer.length;
+              const arr = new Uint8Array(file.buffer.length);
+              const bytes = await file.buffer.read(arr);
+              if (bytes !== bufLength) {
+                throw new Error(`Error getting file contents from buffer: got ${bytes}, expected ${bufLength}`);
+              }
+              result[file.path] = arr;
+            } else {
+              throw new Error('No buffer and no file');
+            }
             file = undefined;
           }
         }
         fence = undefined;
       } else if (file?.writing) {
-        await file.buffer.write(file.toBinary(file.preLine + line));
+        await file.writer.write(file.toBinary(file.preLine + line));
       } else if (file) {
         file.data += file.preLine + line;
         if (file.readOptions || file.data.length >= 1024) {
-          await file.buffer.write(file.toBinary(file.data));
+          await file.writer.write(file.toBinary(file.data));
           file.writing = true;
           file.data = '';
         }
@@ -272,8 +289,18 @@ export async function unpack(input = Deno.stdin, open = Deno.open) {
           gap = 0;
           const path = inlineStrings[0];
           await ensureDir(dirname(path));
-          const openFile = await open(path, {write: true, create: true});
-          const buffer = BufWriter.create(openFile);
+          let openFile
+          let writer
+          let bufWriter
+          let buffer
+          if (stream) {
+            openFile = await open(path, {write: true, create: true});
+            bufWriter = BufWriter.create(openFile);
+            writer = bufWriter;
+          } else {
+            buffer = new Buffer();
+            writer = buffer;
+          }
           file = {
             preLine: '',
             data: '',
@@ -282,6 +309,8 @@ export async function unpack(input = Deno.stdin, open = Deno.open) {
             toBinary: toBinary.utf8,
             file: openFile,
             buffer,
+            bufWriter,
+            writer,
             readOptions: false,
             writing: false,
           };
@@ -301,10 +330,28 @@ export async function unpack(input = Deno.stdin, open = Deno.open) {
   if (file && gap >= 1024) {
     throw new Error(`No file content found for ${JSON.stringify(file.path)}`);
   }
+  if (!stream) {
+    return result;
+  }
+}
+
+export async function write(files: { [path: string]: Uint8Array }) {
+  for (const key of Object.keys(files)) {
+    await Deno.writeFile(key, files[key]);
+  }
+}
+
+export async function run() {
+  const files = await unpack();
+  if (files) {
+    await write(files);
+  } else {
+    throw new Error('No files returned');
+  }
 }
 
 if (import.meta.main) {
-  unpack();
+  run();
 }
 ```
 

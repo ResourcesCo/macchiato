@@ -7,9 +7,9 @@ This is structured as a repository of Markdown files that generate packages
 for components.
 
 The most basic thing that turns a notebook into a package of runnable code is
-[unpack-simple](./docs/unpack_simple.md), which takes fenced codeblocks that
-are preceded by an inline code block containing the filename, and writes the
-data to files.
+[unpack-simple](./docs/unpack-simple.md), which takes fenced codeblocks that
+are preceded by a header with an inline code block containing the path to the
+each file, and writes the files.
 
 The packages are then used to provide frontend and backend components for
 code notebooks.
