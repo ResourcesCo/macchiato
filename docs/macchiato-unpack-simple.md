@@ -136,8 +136,7 @@ The current file is then set and the file is opened for writing.
 import {
   readLines,
   BufWriter,
-  Buffer,
-  StringReader
+  Buffer
 } from "https://deno.land/std@0.100.0/io/mod.ts";
 import { ensureDir } from "https://deno.land/std@0.100.0/fs/mod.ts";
 import { dirname } from "https://deno.land/std@0.100.0/path/mod.ts";
@@ -193,16 +192,17 @@ type ToBinaryMap = {
   [key: string]: ToBinaryFunction
 }
 
-export async function unpack(
-  text: string | undefined = undefined, stream: boolean = false
-): Promise<{ [path: string]: Uint8Array } | undefined> {
-  const input = text === undefined ? Deno.stdin : new StringReader(text)
+type FilePack = { [path: string]: string | Uint8Array }
+
+export async function unpack(stream: boolean = false): Promise<FilePack | undefined> {
+  const input = Deno.stdin;
   const open = Deno.open;
-  const result: { [path: string]: Uint8Array } = {};
+  const result: FilePack = {};
   let file = undefined;
   let fence = undefined;
   let gap = 0;
   const encoder = new TextEncoder();
+  const decoder = new TextDecoder();
   const toBinary: ToBinaryMap = {
     utf8: line => encoder.encode(line),
     base64: line => base64Decode(line.trim()),
@@ -263,7 +263,11 @@ export async function unpack(
               if (bytes !== bufLength) {
                 throw new Error(`Error getting file contents from buffer: got ${bytes}, expected ${bufLength}`);
               }
-              result[file.path] = arr;
+              if (file.options.encoding === 'utf8') {
+                result[file.path] = decoder.decode(arr);
+              } else {
+                result[file.path] = arr;
+              }
             } else {
               throw new Error('No buffer and no file');
             }
@@ -338,9 +342,14 @@ export async function unpack(
   }
 }
 
-export async function write(files: { [path: string]: Uint8Array }) {
-  for (const key of Object.keys(files)) {
-    await Deno.writeFile(key, files[key]);
+export async function write(files: FilePack) {
+  for (const path of Object.keys(files)) {
+    const data = files[path];
+    if (typeof data === 'string') {
+      await Deno.writeTextFile(path, data);
+    } else {
+      await Deno.writeFile(path, data);
+    }
   }
 }
 
@@ -372,19 +381,5 @@ Deno.test("read inline string", () => {
     readInlineStrings("``w`o`w`` `doge: cool`"),
     ["w`o`w", "doge: cool"]
   );
-});
-```
-
-
-##### `test/deno_basic_test.ts`
-
-```js
-import { assertEquals } from "https://deno.land/std@0.99.0/testing/asserts.ts";
-import { unpack } from "../mod.ts";
-
-Deno.test("read example", async () => {
-  const text = await Deno.readTextFile('./test/deno-basic.md');
-  const files = await unpack(text);
-  assertEquals(Object.keys(files || {}).length, 3);
 });
 ```
