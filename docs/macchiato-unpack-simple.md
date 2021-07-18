@@ -131,8 +131,7 @@ with the following fields or `undefined` if it is not reading a file:
 - `data` - holds data before writing to the `writer`, in case the data
   contains options. Once it determines that it is file data, it writes this
   data to the `writer`.
-- `path` - the path of the file. **TODO** check that the file is a
-  relative path and below the given directory
+- `path` - the path of the file.
 - `options` - The options, which can be overriden with a JSON object
   - `eol` - The end of the line. Default comes from the global `eol`
     option. Can be changed to `\r\n`, the Windows line ending. These are
@@ -227,7 +226,7 @@ import {
   StringReader
 } from "https://deno.land/std@0.100.0/io/mod.ts";
 import { ensureDir } from "https://deno.land/std@0.100.0/fs/mod.ts";
-import { dirname } from "https://deno.land/std@0.100.0/path/mod.ts";
+import { normalize, dirname } from "https://deno.land/std@0.100.0/path/mod.ts";
 import {
   decode as base64Decode
 } from "https://deno.land/std@0.100.0/encoding/base64.ts";
@@ -392,7 +391,10 @@ export async function unpack(text: string | undefined = undefined, {
             throw new Error(`No file content found for ${JSON.stringify(file.path)}`);
           }
           gap = 0;
-          const path = inlineStrings[0];
+          const path = normalize(inlineStrings[0]);
+          if (path.startsWith('..') || path.startsWith('/')) {
+            throw new Error(`Path ${JSON.stringify(path)} is not inside directory`);
+          }
           await ensureDir(dirname(path));
           let openFile
           let writer
