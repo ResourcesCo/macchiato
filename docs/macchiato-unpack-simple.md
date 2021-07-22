@@ -242,7 +242,7 @@ const codeFenceRegexp = /^(`{3,})[^`]*$/;
 const backquotesRegexp = /(?<!\\)`+/;
 
 function hexDecode(s: string): Uint8Array {
-  return hexDecodeBytes(new TextEncoder().encode());
+  return hexDecodeBytes(new TextEncoder().encode(s.trim()));
 }
 
 export function nextInlineString(s: string): [string | null, string] {
@@ -323,7 +323,7 @@ export async function unpack(text: string | undefined = undefined, {
             } catch (err) {
               // do nothing
             }
-            if (Array.isArray(parsedOptions && parsedOptions[0] === '$options')) {
+            if (Array.isArray(parsedOptions) && parsedOptions[0] === '$options') {
               options = parsedOptions[1];
               if (parsedOptions.length !== 2 || options === null || typeof options !== 'object') {
                 throw new Error(`Invalid options for ${JSON.stringify(file.path)}`);
@@ -331,7 +331,6 @@ export async function unpack(text: string | undefined = undefined, {
             }
           }
           if (options) {
-            file.readOptions = true;
             if (typeof options.encoding === 'string' && options.encoding in toBinary) {
               file.options.encoding = options.encoding;
               file.toBinary = toBinary[file.options.encoding];
@@ -344,7 +343,9 @@ export async function unpack(text: string | undefined = undefined, {
             } else {
               file.options.eol = '\n';
             }
+            file.data = '';
             file.preLine = '';
+            file.readOptions = true;
           } else {
             if (!file.writing) {
               await file.writer.write(file.toBinary(file.data));
@@ -525,12 +526,12 @@ console.log("test");
 ##### `test/prevent_directory_escape_test.ts`
 
 ```js
-import { assertThrows } from "https://deno.land/std@0.102.0/testing/asserts.ts";
+import { assertThrowsAsync } from "https://deno.land/std@0.102.0/testing/asserts.ts";
 import { unpack } from "../mod.ts";
 
 Deno.test("prevent directory escape", async () => {
   const text = await Deno.readTextFile('./test/directory-escape.md');
-  assertThrows(async () => {
+  await assertThrowsAsync(async () => {
     const files = await unpack(text);
   });
 });
@@ -544,7 +545,7 @@ Deno.test("prevent directory escape", async () => {
 ##### `test1`
 
 ```json
-{"encoding": "hex"}
+["$options", {"encoding": "hex"}]
 ```
 
 ```
@@ -554,7 +555,7 @@ Deno.test("prevent directory escape", async () => {
 ##### `test2`
 
 ```json
-{"encoding": "base64"}
+["$options", {"encoding": "base64"}]
 ```
 
 ```
@@ -564,7 +565,7 @@ AAECA/8=
 ##### `test3`
 
 ```json
-{"encoding": "base64url"}
+["$options", {"encoding": "base64url"}]
 ```
 
 ```
@@ -582,10 +583,8 @@ import { unpack } from "../mod.ts";
 Deno.test("binary", async () => {
   const text = await Deno.readTextFile('./test/binary.md');
   const files = await unpack(text);
-  console.log({files});
   for (const path of ['test1', 'test2', 'test3']) {
     const value = (files || {})[path];
-    console.log({value});
     if (value instanceof Uint8Array) {
       assert(equals(value, new Uint8Array([0, 1, 2, 3, 255])));
     } else {
