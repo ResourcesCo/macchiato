@@ -224,22 +224,26 @@ import {
   BufWriter,
   Buffer,
   StringReader
-} from "https://deno.land/std@0.100.0/io/mod.ts";
-import { ensureDir } from "https://deno.land/std@0.100.0/fs/mod.ts";
-import { normalize, dirname } from "https://deno.land/std@0.100.0/path/mod.ts";
+} from "https://deno.land/std@0.102.0/io/mod.ts";
+import { ensureDir } from "https://deno.land/std@0.102.0/fs/mod.ts";
+import { normalize, dirname } from "https://deno.land/std@0.102.0/path/mod.ts";
 import {
   decode as base64Decode
-} from "https://deno.land/std@0.100.0/encoding/base64.ts";
+} from "https://deno.land/std@0.102.0/encoding/base64.ts";
 import {
   decode as base64urlDecode
-} from "https://deno.land/std@0.100.0/encoding/base64url.ts";
+} from "https://deno.land/std@0.102.0/encoding/base64url.ts";
 import {
-  decodeString as hexDecode
-} from "https://deno.land/std@0.100.0/encoding/hex.ts";
+  decode as hexDecodeBytes
+} from "https://deno.land/std@0.102.0/encoding/hex.ts";
 const fileDataRegexp = /^#####\s+\`/;
 const listDataRegexp = /^-\s*`/;
 const codeFenceRegexp = /^(`{3,})[^`]*$/;
 const backquotesRegexp = /(?<!\\)`+/;
+
+function hexDecode(s: string): Uint8Array {
+  return hexDecodeBytes(new TextEncoder().encode());
+}
 
 export function nextInlineString(s: string): [string | null, string] {
   const match = backquotesRegexp.exec(s);
@@ -473,10 +477,12 @@ if (import.meta.main) {
 
 ## Tests
 
+### Inline Strings
+
 ##### `test/read_inline_strings_test.ts`
 
 ```js
-import { assertEquals } from "https://deno.land/std@0.99.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.102.0/testing/asserts.ts";
 import { readInlineStrings } from "../mod.ts";
 
 Deno.test("read inline string", () => {
@@ -488,10 +494,12 @@ Deno.test("read inline string", () => {
 });
 ```
 
+### Basic Deno
+
 ##### `test/deno_basic_test.ts`
 
 ```js
-import { assertEquals } from "https://deno.land/std@0.99.0/testing/asserts.ts";
+import { assertEquals } from "https://deno.land/std@0.102.0/testing/asserts.ts";
 import { unpack } from "../mod.ts";
 
 Deno.test("read example", async () => {
@@ -499,5 +507,90 @@ Deno.test("read example", async () => {
   const files = await unpack(text);
   assertEquals(Object.keys(files || {}).length, 3);
   assertEquals((files || {})['hello.txt'], `Hello, world.\n`);
+});
+```
+
+### Prevent Directory Escape
+
+##### `test/directory-escape.md`
+
+````md
+##### `../hello.md`
+
+```js
+console.log("test");
+```
+````
+
+##### `test/prevent_directory_escape_test.ts`
+
+```js
+import { assertThrows } from "https://deno.land/std@0.102.0/testing/asserts.ts";
+import { unpack } from "../mod.ts";
+
+Deno.test("prevent directory escape", async () => {
+  const text = await Deno.readTextFile('./test/directory-escape.md');
+  assertThrows(async () => {
+    const files = await unpack(text);
+  });
+});
+```
+
+### Binary
+
+##### `test/binary.md`
+
+````md
+##### `test1`
+
+```json
+{"encoding": "hex"}
+```
+
+```
+00010203FF
+```
+
+##### `test2`
+
+```json
+{"encoding": "base64"}
+```
+
+```
+AAECA/8=
+```
+
+##### `test3`
+
+```json
+{"encoding": "base64url"}
+```
+
+```
+AAECA_8=
+```
+````
+
+##### `test/binary_test.ts`
+
+```js
+import { equals } from "https://deno.land/std@0.102.0/bytes/mod.ts";
+import { assert } from "https://deno.land/std@0.102.0/testing/asserts.ts";
+import { unpack } from "../mod.ts";
+
+Deno.test("binary", async () => {
+  const text = await Deno.readTextFile('./test/binary.md');
+  const files = await unpack(text);
+  console.log({files});
+  for (const path of ['test1', 'test2', 'test3']) {
+    const value = (files || {})[path];
+    console.log({value});
+    if (value instanceof Uint8Array) {
+      assert(equals(value, new Uint8Array([0, 1, 2, 3, 255])));
+    } else {
+      throw new Error('value is not a Uint8Array');
+    }
+  }
 });
 ```
