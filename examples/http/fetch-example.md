@@ -1,4 +1,4 @@
-##### `main.ts`
+##### `mod.ts`
 
 ```ts
 const text = await Deno.readTextFile('data.json');
