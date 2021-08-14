@@ -1,3 +1,10 @@
+# SQL Query
+
+This makes an SQL query using the Pagila example database. Before running this, create a
+database named pagila and load the pagila sample data into it:
+
+https://github.com/devrimgunduz/pagila
+
 ##### `mod.ts`
 
 ```ts
