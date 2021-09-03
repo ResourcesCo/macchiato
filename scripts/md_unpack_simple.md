@@ -1,4 +1,4 @@
-# unpack-simple
+# md_unpack_simple
 
 *Unpack data from a Markdown notebook*
 
@@ -237,7 +237,6 @@ import {
   decode as hexDecodeBytes
 } from "https://deno.land/std@0.102.0/encoding/hex.ts";
 const fileDataRegexp = /^#####\s+\`/;
-const listDataRegexp = /^-\s*`/;
 const codeFenceRegexp = /^(`{3,})[^`]*$/;
 const backquotesRegexp = /(?<!\\)`+/;
 
@@ -320,7 +319,7 @@ export async function unpack(text: string | undefined = undefined, {
             let parsedOptions;
             try {
               parsedOptions = JSON.parse(file.data);
-            } catch (err) {
+            } catch (_err) {
               // do nothing
             }
             if (Array.isArray(parsedOptions) && parsedOptions[0] === '$options') {
@@ -476,7 +475,13 @@ if (import.meta.main) {
 }
 ```
 
-## Tests
+## Testing
+
+To test, run:
+
+```bash
+deno test --allow-read=. --unstable
+```
 
 ### Inline Strings
 
@@ -532,7 +537,7 @@ import { unpack } from "../mod.ts";
 Deno.test("prevent directory escape", async () => {
   const text = await Deno.readTextFile('./test/directory-escape.md');
   await assertThrowsAsync(async () => {
-    const files = await unpack(text);
+    await unpack(text);
   });
 });
 ```
@@ -592,4 +597,99 @@ Deno.test("binary", async () => {
     }
   }
 });
+```
+
+## Continuous Integration
+
+TODO: automate running md_unpack_simple when source file is changed
+
+This GitLab CI pipeline uses a Deno Docker image to test it.
+
+##### `.gitlab-ci.yml`
+
+```yaml
+stages:
+  - test
+
+image: denoland/deno:ubuntu-1.13.2
+
+deno-lint:
+  stage: test
+  script:
+    - deno lint --unstable
+
+deno-test:
+  stage: test
+  script:
+    - deno test --allow-read=. --unstable
+```
+
+## Meta
+
+##### `README.md`
+
+`````md
+# md_unpack_simple
+
+[![pipeline status](https://gitlab.com/ResourcesCo/macchiato/md_unpack_simple/badges/main/pipeline.svg)](https://gitlab.com/ResourcesCo/macchiato/md_unpack_simple/-/commits/main)
+
+Unpack a Markdown document into multiple files
+
+To run, pass a Markdown file to standard input, and give permission to write
+to the current directory:
+
+```bash
+cat source.md | deno run --allow-write=. --unstable https://deno.land/x/md_unpack_simple/mod.ts
+```
+
+This will take embedded files in the source Markdown document and write them
+to their path within the current directory. If directories are missing, they
+will be created.
+
+It only requires permissions to read and write to the current directory, as
+well as the `--unstable` flag. The read permission is required for checking
+if the directory already exists before creating it.
+
+The embedded files can be defined with a level 5 header with an inline code
+block, like this:
+
+````md
+##### `js/file1.js`
+
+```js
+console.log('Hello, world.')
+```
+
+##### `css/file2.css`
+
+```css
+body { background-color: yellow; }
+```
+````
+`````
+
+##### `LICENSE`
+
+```
+MIT License
+
+Copyright (c) 2021 Resources.co
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
 ```
