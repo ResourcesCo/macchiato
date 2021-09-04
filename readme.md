@@ -1,5 +1,15 @@
 # macchiato
 
+## current instructions
+
+There is a tool called `md_unpack_simple` which unpacks files from markdown,
+and which itself contains files for the project, which is available at
+https://deno.land/x/md_unpack_simple
+
+There is also a work-in-progress server setup guide in server/setup.md.
+
+## draft
+
 This project is to build a self-hosted Markdown code notebook application in
 Markdown.
 
