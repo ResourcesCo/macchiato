@@ -149,4 +149,73 @@ export DENO_INSTALL="$HOME/.deno"
 export PATH="$DENO_INSTALL/bin:$PATH"
 ```
 
+## Install Docker
 
+Install Docker CE and Docker Compose, following the directions on the Docker site:
+
+- [Install Docker Engine on Ubuntu](https://docs.docker.com/engine/install/ubuntu/) -
+  add `-y` to the `apt-get install` commands
+- [Install Docker Compose](https://docs.docker.com/compose/install/) -
+  Select Linux from the list of tabs
+
+## Clone the repo
+
+Next, clone the repo:
+
+```bash
+mkdir ~/macchiato
+cd ~/macchiato
+git clone https://github.com/ResourcesCo/macchiato.git
+```
+
+## Unpack files from this document
+
+This document contains some embedded files, which need to be unpacked.
+
+To unpack them, use a script from this project,
+[md_unpack_simple](https://deno.land/x/md_unpack_simple). You can inspect the
+code on the link within [deno.land/x](https://deno.land/x). **deno.land** makes
+sure that once a version is published, it can't change, so include the version
+number when installing or running it!
+
+To see more about **md_unpack_simple**, read the [source Markdown document from
+which it was generated](https://github.com/ResourcesCo/macchiato/blob/main/scripts/md_unpack_simple.md).
+
+Also be sure to pay attention to the permissions.
+
+Install it using this command:
+
+```bash
+deno install --unstable --allow-read=. --allow-write=. https://deno.land/x/md_unpack_simple@0.0.2/mod.ts
+```
+
+This installs **md_unpack_simple** to your path.
+
+The permissions `--allow-read=.` and `--allow-write=.` and the option `--unstable`
+are used exactly as they are each time **md_unpack_simple** is run. This means
+that reading and writing will be restricted to the current directory.
+
+Now, make a directory and unpack this document, which was cloned in the previous
+step, to it:
+
+```bash
+mkdir ~/macchiato/setup
+cd ~/macchiato/setup
+cat ~/macchiato/macchiato/server/setup.md | md_unpack_simple
+```
+
+## Run Caddy with Docker
+
+##### `docker-compose.yml`
+
+```yaml
+version: "3.9"
+
+services:
+  caddy:
+    image: caddy:latest
+    ports:
+      - "80:80"
+      - "443:443"
+    restart: always
+```
