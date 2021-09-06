@@ -199,14 +199,45 @@ Now, make a directory and unpack this document, which was cloned in the previous
 step, to it:
 
 ```bash
-mkdir ~/macchiato/setup
-cd ~/macchiato/setup
+mkdir -p ~/macchiato/server/setup
+cd ~/macchiato/server/setup
 cat ~/macchiato/macchiato/server/setup.md | md_unpack_simple
 ```
 
+Then run `find .` to get a list of all the files. The files will be everything in
+here that is preceded by a line that starts with `` ##### ` `` - that is, five
+hash marks and a backquote. It's an inline code block inside of a level 5 header.
+This was chosen because it's nested deeply enough that it will rarely interfere
+with the outline structure of the document, but is a header so it has deep links.
+
 ## Run Caddy with Docker
 
-##### `docker-compose.yml`
+[Caddy](https://caddyserver.com/) is a web server implemented in
+[Go](https://go.dev/). It pioneered [Automatic HTTPS]() - getting a HTTPS
+certificate from LetsEncrypt automatically.
+
+We're going to run tiny apps on subdomains, including code notebooks and code
+playgrounds/sandboxes, with each app having access to certain resources. Each
+subdomain gets its own cookies and LocalStorage, which makes it so resources
+only need to be made available within a limited context. If your app doesn't
+need any secrets, nor produces output that is used for something important,
+you may run it without checking the code. If, on the other hand, it has
+write access to private repositories, you'll want to carefully check that you
+trust the code (including dependencies).
+
+LetsEncrypt has a quota of up to 50 SSL certificates per week. It also has
+wildcard certificates, but those are slightly more involved to set up. Here
+we'll start with individual certificates and later move to wildcard
+certificates.
+
+First, let's run Caddy with its defaults using docker-compose and access it with
+its IP address. Here is the file that defines the Docker Compose Environment. It
+simply grabs the
+[caddy image](https://hub.docker.com/_/caddy) from
+[Docker Hub](https://www.docker.com/products/docker-hub) and runs it with ports
+80 and 443 exposed.
+
+##### `caddy-default/docker-compose.yml`
 
 ```yaml
 version: "3.9"
@@ -219,3 +250,44 @@ services:
       - "443:443"
     restart: always
 ```
+
+Change into the directory and start the Docker Compose environment in detached
+mode with Docker compose:
+
+```bash
+cd ~/macchiato/server/setup/caddy-default
+sudo docker-compose up --detach
+```
+
+This will run the container in `docker-compose.yml` in the background. If you
+leave off `--detach`, it will show it in the foreground, with the logs, and you
+can stop it with `Ctrl-C`. To see the logs when it's in detached mode, run:
+
+```
+sudo docker-compose logs
+```
+
+You can add `--help` to learn to use Docker Compose's log command. It accepts:
+
+- `-f` to stream the logs to your conosle
+- `-t` to show timestamps
+- `--tail=<n>` to show a certain number of lines (`--tail=50` for 50 lines)
+
+Now, look up your IP address of your server, on your host or in `~/.ssh/config`,
+and open the url in your browser:
+
+```
+http://x.x.x.x/
+```
+
+It shows the introduction page for Caddy.
+
+Next we'll start a simple app on a subdomain.
+
+Now, stop the compose environment so the ports will be open when we start a
+new one in the next step:
+
+```
+sudo docker-compose down
+```
+
