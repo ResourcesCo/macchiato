@@ -75,12 +75,14 @@ services:
     image: rclone/rclone:latest
     volumes:
       - backup:/backup
+      - rclone_config:/config/rclone
 volumes:
   mysql_data: {}
   wordpress_site: {}
   caddy_data: {}
   caddy_config: {}
   backup: {}
+  rclone_config: {}
 ```
 
 ### Configuration
@@ -97,7 +99,7 @@ WORDPRESS_DB_PASSWORD=
 
 The Caddyfile has the host, which needs to be set to the host of your site.
 
-##### `Caddyfile`
+##### `Caddyfile.example`
 
 ```
 blog.example.com {
@@ -121,11 +123,101 @@ max_execution_time = 600
 
 First, point a domain to your server - perhaps a subdomain.
 
+Copy `Caddyfile.example` to `Caddyfile` and set the domain.
+
+Copy `.env.example` to `.env` and make it accessible only by root:
+
+```bash
+cp .env.example .env
+sudo chown root:root .env
+sudo chmod 600 .env
+```
+
+Then open it with vi and set the passwords.
+
 Then, bring your site up with:
 
 ```bash
 sudo docker-compose up
 ```
 
-TODO: instructions for downloading and restoring sql and a WordPress site from
-a backup
+### Restoring from backup
+
+First, bring rclone up. This will build the container. By default, it doesn't
+build it, because it's in a custom profile (`setup`).
+
+```bash
+sudo docker-compose up rclone --no-start
+```
+
+Now that it's built, run `rclone config` to configure it:
+
+```bash
+sudo docker-compose run rclone config
+```
+
+It will ask what to do. Choose `n` to create a new remote, then follow the
+instructions.
+
+Once the remote is set up, list files in the remote:
+
+```bash
+sudo docker-compose run rclone ls myremote:
+```
+
+When you've found the directory you want, sync them to a directory within `/backup`:
+
+```bash
+sudo docker-compose run rclone sync myremote:mybucket/backup20210909 /backup/backup20210909
+```
+
+The WordPress docker image has `tar` and `bunzip2` and `bash`, so it can be
+logged into in order to decompress the sql data for MySQL and restore the `www`
+data.
+
+The MySQL docker image has the `mysql` command which can be used to restore the
+database.
+
+Another route would be to create a new Docker image and install the commands needed.
+
+To decompress the sql backup (using your filename and the right decompression tool,
+such as `gunzip` or `bunzip2`):
+
+```bash
+sudo docker-compose run --entrypoint /bin/bash wordpress
+cd /backup/backup20210909
+bunzip2 blog.sql.bz2
+exit
+```
+
+To restore the database:
+
+```bash
+sudo docker-compose run --entrypoint /bin/bash mysql
+cd /backup/backup20210909
+mysql --host=mysql -u root -p wordpress_site < blog.sql
+# *enter root password from .env*
+exit
+```
+
+To restore the wordpress site:
+
+```bash
+sudo docker-compose run --entrypoint /bin/bash wordpress
+cd /backup/backup20210909
+tar xjf blog.tar.bz2
+cd blog
+cp /var/www/html/wp-config.php wp-config.php
+rm -r /var/www/html/* /var/www/html/.*
+mv * /var/www/html/
+mv .* /var/www/html/
+chown -R www-data:www-data /var/www/html
+```
+
+### Setting up backups
+
+Backups can be set up by making a cron job on the host that does `mysqldump` on
+the mysql container and runs `tar` on the wordpress container to copy the database
+dump and the site to `/backup` and runs `rclone copy` on the rclone container.
+It could also run this inside a docker container which has access to the docker
+socket.
