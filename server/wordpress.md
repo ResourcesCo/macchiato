@@ -41,6 +41,7 @@ services:
     command:
       - '--character-set-server=utf8mb4'
       - '--collation-server=utf8mb4_unicode_ci'
+    restart: always
   wordpress:
     image: wordpress:latest
     volumes:
@@ -54,6 +55,7 @@ services:
       WORDPRESS_DB_USER: wordpress_site
       WORDPRESS_DB_PASSWORD: "${WORDPRESS_DB_PASSWORD}"
       WORDPRESS_DB_NAME: wordpress_site
+    restart: always
   wordpress-cli:
     profiles:
       - setup
@@ -76,6 +78,13 @@ services:
     volumes:
       - backup:/backup
       - rclone_config:/config/rclone
+  shell:
+    profiles:
+      - setup
+    image: alpine:latest
+    volumes:
+      - wordpress_site:/www
+      - backup:/backup
 volumes:
   mysql_data: {}
   wordpress_site: {}
