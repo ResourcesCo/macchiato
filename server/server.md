@@ -90,6 +90,7 @@ RUN apt-get upgrade -y
 RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -qq mysql-client git neovim curl build-essential zsh unzip
 RUN curl -fsSL https://deno.land/x/install/install.sh | DENO_INSTALL=/ sh
 RUN sh -c "$(curl -fsSL $OHMYZSH_URL)" "" --unattended
+RUN curl https://rclone.org/install.sh | bash
 
 RUN mkdir -p /setup
 ADD entrypoint.sh /setup
@@ -129,7 +130,7 @@ services:
     volumes:
       - shell_home:/root
       - shell_etc:/etc
-    init: true
+    
     restart: 'no'
 volumes:
   mariadb_data: {}
@@ -143,9 +144,85 @@ To start the mysql server and build the shell container, run:
 sudo docker-compose up --detach
 ```
 
-Now, run the shell container:
+The shell container will exit right after it starts. This is desired, and
+restart is set to `no` so it won't keep trying to start it. This is because
+it's for running one-off containers. By default, these won't have the API
+keys or access to volumes of other key services, but in the one off commands
+with `-e` for environment variables and `-v` for volumes, it can be given
+access to credentials and data as needed.
+
+The `mariadb` container, on the other hand, has `restart` set to `always`,
+because it is a service that we'll want to keep running and to automatically
+be started when restarting the host. The same will apply for caddy and
+wordpress because those will power your website.
+
+Now, we'll start a shell container to use the root mysql account to create
+the three mysql databases. We'll need the environment variables for the
+mysql accounts. The entrypoint for the [mariadb docker image](https://github.com/MariaDB/mariadb-docker/blob/master/docker-entrypoint.sh#L317)
+provides an example. Each user will only have access to its database.
+
+First, run a the `shell` service with the four environment variables. This
+will bring you into a shell:
 
 ```bash
-sudo docker-compose run shell
+sudo bash -c 'source .env && docker-compose run \
+-e MARIADB_ROOT_PASSWORD=$MARIADB_ROOT_PASSWORD \
+-e MARIADB_WORDPRESS_PASSWORD=$MARIADB_WORDPRESS_PASSWORD \
+-e MARIADB_GITEA_PASSWORD=$MARIADB_GITEA_PASSWORD \
+-e MARIADB_APP_PASSWORD=$MARIADB_APP_PASSWORD \
+shell /bin/zsh'
 ```
+
+In this shell, you can now log into MySQL as root:
+
+```bash
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb
+```
+
+Now, create the WordPress user and database and grant the WordPress user access
+to the WordPress database:
+
+```bash
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb <<< "CREATE DATABASE wordpress"
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb <<< "CREATE USER 'wordpress'@'%' IDENTIFIED BY '$MARIADB_WORDPRESS_PASSWORD';"
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb <<< "GRANT ALL ON wordpress.* TO 'wordpress'@'%';"
+```
+
+Try logging in as the WordPress user:
+
+```bash
+MYSQL_PWD=$MARIADB_WORDPRESS_PASSWORD mysql -u wordpress -h mariadb wordpress
+```
+
+Create the gitea and app users:
+
+```bash
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb <<< "CREATE DATABASE gitea"
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb <<< "CREATE USER 'gitea'@'%' IDENTIFIED BY '$MARIADB_GITEA_PASSWORD';"
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb <<< "GRANT ALL ON gitea.* TO 'gitea'@'%';"
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb <<< "CREATE DATABASE app"
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb <<< "CREATE USER 'app'@'%' IDENTIFIED BY '$MARIADB_APP_PASSWORD';"
+MYSQL_PWD=$MARIADB_ROOT_PASSWORD mysql -u root -h mariadb <<< "GRANT ALL ON app.* TO 'app'@'%';"
+```
+
+If you have data to restore, you can download it using rclone, which is in the
+shell container, and restore it using the mysql command.
+
+To log into rclone, use `rclone config`, and choose environment variables for the
+secrets, so they aren't left lying around.
+
+These can be added to your `.env`, which if you followed [setup.md]('./setup.md'),
+are only accessible by root.
+
+Once it's downloaded, you can use `gunzip`, `bunzip2`, `unzip`, and `tar` which are
+also included in the shell to get a `.sql` file, and restore it with (replacing
+`wordpress.sql` with the name of your database):
+
+```bash
+MYSQL_PWD=$MARIADB_WORDPRESS_PASSWORD mysql -u wordpress -h mariadb wordpress < wordpress.sql
+```
+
+When you're done, type `exit` and enter to exit the shell container.
+
+## Step 2: Set up WordPress and Caddy
 
