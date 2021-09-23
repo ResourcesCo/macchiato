@@ -7,9 +7,10 @@ Docker Compose):
 - mariadb
 - ubuntu shell
 - wordpress with IndieAuth
-- caddy with wildcard SSL
+- caddy
 - gitea
-- deno-based server for API & creating sites on wildcard subdomains
+- deno-based server for API & creating sites on subdomains
+- caddy w/ with wildcard SSL for unlimited subdomains
 
 These files can be extracted with `md_unpack_simple`:
 
@@ -67,7 +68,7 @@ MARIADB_APP_PASSWORD=
 ```
 
 Now, let's get the mariadb and shell containers, and use the shell
-container to add the three mysql databases and users.
+container to add the three databases and users.
 
 ##### `step1/entrypoint.sh`
 
@@ -130,7 +131,6 @@ services:
     volumes:
       - shell_home:/root
       - shell_etc:/etc
-    
     restart: 'no'
 volumes:
   mariadb_data: {}
@@ -138,7 +138,7 @@ volumes:
   shell_etc: {}
 ```
 
-To start the mysql server and build the shell container, run:
+To start the mariadb server and build the shell container, run:
 
 ```bash
 sudo docker-compose up --detach
@@ -156,9 +156,9 @@ because it is a service that we'll want to keep running and to automatically
 be started when restarting the host. The same will apply for caddy and
 wordpress because those will power your website.
 
-Now, we'll start a shell container to use the root mysql account to create
-the three mysql databases. We'll need the environment variables for the
-mysql accounts. The entrypoint for the [mariadb docker image](https://github.com/MariaDB/mariadb-docker/blob/master/docker-entrypoint.sh#L317)
+Now, we'll start a shell container to use the root mariadb account to create
+the three mariadb databases. We'll need the environment variables for the
+mariadb accounts. The entrypoint for the [mariadb docker image](https://github.com/MariaDB/mariadb-docker/blob/master/docker-entrypoint.sh#L317)
 provides an example. Each user will only have access to its database.
 
 First, run a the `shell` service with the four environment variables. This
@@ -225,4 +225,156 @@ MYSQL_PWD=$MARIADB_WORDPRESS_PASSWORD mysql -u wordpress -h mariadb wordpress < 
 When you're done, type `exit` and enter to exit the shell container.
 
 ## Step 2: Set up WordPress and Caddy
+
+To set up WordPress and Caddy, we'll add two containers. For each, we'll add
+a configuration file. There are also three volumes to add.
+
+##### `step2/docker-compose.yml`
+
+```yaml{21-44,49-51}
+version: '3.9'
+services:
+  mariadb:
+    image: mariadb:latest
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    command:
+      - '--character-set-server=utf8mb4'
+      - '--collation-server=utf8mb4_unicode_ci'
+    environment:
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
+    restart: always
+  shell:
+    build:
+      context: ./
+      dockerfile: Dockerfile.shell
+    volumes:
+      - shell_home:/root
+      - shell_etc:/etc
+    restart: 'no'
+  wordpress:
+    image: wordpress:latest
+    volumes:
+      - wordpress_site:/var/www/html
+      - ./php.conf.ini:/usr/local/etc/php/conf.d/conf.ini
+    depends_on:
+      - mariadb
+    environment:
+      WORDPRESS_DB_HOST: mariadb
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: "${MARIADB_WORDPRESS_PASSWORD}"
+      WORDPRESS_DB_NAME: wordpress
+    restart: always
+  caddy:
+    image: caddy:latest
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - 80:80
+      - 443:443
+    restart: always
+volumes:
+  mariadb_data: {}
+  shell_home: {}
+  shell_etc: {}
+  wordpress_site: {}
+  caddy_data: {}
+  caddy_config: {}
+```
+
+##### `step2/Caddyfile`
+
+```
+example.com {
+  reverse_proxy wordpress:80
+}
+www.example.com {
+  redir https://example.com{uri}
+}
+```
+
+##### `step2/php.conf.ini`
+
+[From github.com/nezhar/wordpress-docker-compose](https://github.com/nezhar/wordpress-docker-compose/blob/master/docker-compose.yml)
+
+```ini
+file_uploads = On
+memory_limit = 500M
+upload_max_filesize = 30M
+post_max_size = 30M
+max_execution_time = 600
+```
+
+Now, copy the files into your directory, overwriting `docker-compose.yml`. If you
+changed `docker-compose.yml`, just copy the relevant lines from
+`step2/docker-compose.yml` and add them to `docker-compose.yml`.
+
+```bash
+cp step2/docker-compose.yml docker-compose.yml
+cp step2/php.conf.ini php.conf.ini
+cp step2/Caddyfile Caddyfile
+```
+
+Edit `Caddyfile` to have a domain name for your blog, and edit the DNS records
+for your domain name to point to your VPS.
+
+Now, bring it up:
+
+```bash
+sudo docker-compose up -d
+```
+
+### Restoring an existing WordPress site
+
+If you are restoring an existing WordPress site, follow these steps. If not,
+skip to the end of this section.
+
+Log into shell with the WP WordPress password:
+
+```bash
+sudo bash -c 'source .env && docker-compose run \
+-e MARIADB_WORDPRESS_PASSWORD=$MARIADB_WORDPRESS_PASSWORD \
+-v server_wordpress_site:/server_wordpress_site \
+shell /bin/zsh
+```
+
+...and in another terminal session, copy the files into the shell's `/root` directory
+(the shell must be running in the background, or another container that has
+`shell_home` mounted, to copy with `docker cp`):
+
+```bash
+sudo docker ps
+# get the ID of the shell container, and replace $CONTAINER_ID with it
+sudo docker cp blog.sql $CONTAINER_ID:/root
+sudo docker cp blog-site.tar.bz2 $CONTAINER_ID:/root
+```
+
+Now, back in your shell, in the original terminal session, restore your database
+and site:
+
+```bash
+mysql --host=mariadb -u wordpress --password=$MARIADB_WORDPRESS_PASSWORD wordpress < blog.sql
+cd /server_wordpress_site
+tar xjf ~/blog-site.tar.bz2
+# delete wp-config.php since WordPress for docker will configure the database
+rm wp-config.php
+```
+
+### Setting up WordPress
+
+Now, try going to the domain you're using for the site. If it isn't working, you might
+try checking the Docker logs, and making sure your DNS settings have taken effect.
+
+If you didn't restore an existing WordPress site, it should show the WordPress setup
+screen. Follow the instructions.
+
+### Installing the WordPress IndieAuth and MicroPub Plugins
+
+Install and activate the WordPress IndieAuth Plugin by going to Plugins > Add Plugin
+and searching for them. Then activate it and try posting with
+[Quill](https://quill.p3k.io/).
+
+## Step 3: Set up Gitea
 
