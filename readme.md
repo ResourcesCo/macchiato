@@ -24,8 +24,10 @@ each file, and writes the files.
 The packages are then used to provide frontend and backend components for
 code notebooks.
 
-There is a [walkthrough](./docs/walkthrough.md) where you can build this
-yourself using only notebook pages and a few open source tools that are
-either popular or are easy to inspect.
+## TODO
 
-You can also install it from the published packages.
+- [x] Instructions/scripts for Docker container with database, WordPress, gitea
+- [ ] App that provides sign-in with IndieAuth
+- [ ] Ability to publish notebook pages on subdomains from app when logged in
+- [ ] Link to published packages
+- [ ] Script to check that published packages match Markdown source code
