@@ -132,6 +132,7 @@ services:
       - shell_home:/root
       - shell_etc:/etc
     restart: 'no'
+    init: true
 volumes:
   mariadb_data: {}
   shell_home: {}
@@ -252,6 +253,7 @@ services:
       - shell_home:/root
       - shell_etc:/etc
     restart: 'no'
+    init: true
   wordpress:
     image: wordpress:latest
     volumes:
@@ -378,3 +380,226 @@ and searching for them. Then activate it and try posting with
 
 ## Step 3: Set up Gitea
 
+##### `step3/docker-compose.yml`
+
+```yaml
+version: '3.9'
+services:
+  mariadb:
+    image: mariadb:latest
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    command:
+      - '--character-set-server=utf8mb4'
+      - '--collation-server=utf8mb4_unicode_ci'
+    environment:
+      MARIADB_ROOT_PASSWORD: "${MARIADB_ROOT_PASSWORD}"
+    restart: always
+  shell:
+    build:
+      context: ./
+      dockerfile: Dockerfile.shell
+    volumes:
+      - shell_home:/root
+      - shell_etc:/etc
+    restart: 'no'
+    init: true
+  wordpress:
+    image: wordpress:latest
+    volumes:
+      - wordpress_site:/var/www/html
+      - ./php.conf.ini:/usr/local/etc/php/conf.d/conf.ini
+    depends_on:
+      - mariadb
+    environment:
+      WORDPRESS_DB_HOST: mariadb
+      WORDPRESS_DB_USER: wordpress
+      WORDPRESS_DB_PASSWORD: "${MARIADB_WORDPRESS_PASSWORD}"
+      WORDPRESS_DB_NAME: wordpress
+    restart: always
+  caddy:
+    image: caddy:latest
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile
+      - caddy_data:/data
+      - caddy_config:/config
+    ports:
+      - 80:80
+      - 443:443
+    restart: always
+  gitea:
+    image: gitea/gitea:latest
+    environment:
+      USER_UID: 1000
+      USER_GID: 1000
+      GITEA__database__DB_TYPE: mysql
+      GITEA__database__HOST: mariadb:3306
+      GITEA__database__NAME: gitea
+      GITEA__database__USER: gitea
+      GITEA__database__PASSWD: "${MARIADB_GITEA_PASSWORD}"
+      DISABLE_REGISTRATION: 'true'
+      INSTALL_LOCK: 'true'
+      DISABLE_SSH: 'true'
+      ROOT_URL: https://gitea.example.com
+    restart: always
+    volumes:
+      - gitea_data:/data
+      - /etc/timezone:/etc/timezone:ro
+      - /etc/localtime:/etc/localtime:ro
+volumes:
+  mariadb_data: {}
+  shell_home: {}
+  shell_etc: {}
+  wordpress_site: {}
+  caddy_data: {}
+  caddy_config: {}
+  gitea_data: {}
+```
+
+##### `step3/Caddyfile`
+
+```
+gitea.example.com {
+  reverse_proxy wordpress:80
+}
+```
+
+Copy the new Docker Compose file and append the `Caddyfile`:
+
+```bash
+cp step3/docker-compose.yml docker-compose.yml
+cat step3/Caddyfile >> Caddyfile
+```
+
+Add a DNS entry for the gitea host, and put the host in your `Caddyfile` and `docker-compose.yml`.
+
+Now start it:
+
+```bash
+sudo docker-compose up -d
+```
+
+Go to the URL, and it should show the login page.
+
+Now, to create an admin user, run a command with the `gitea` service:
+
+```bash
+sudo docker-compose run gitea gitea admin user create --admin --email yourname@example.com --username yourusername --random-password
+```
+
+The password will be printed to the screen and you can log in as that user.
+
+## Step 4: A Deno app that creates sites on subdomains
+
+Add a wildcard DNS entry, perhaps at `*.sandbox.yourdomain.com`, and point it
+to the server, as well as a regular DNS entry to the app that will create the
+sandboxes (`sandbox.yourdomain.com`), also pointing to the server.
+
+This time, manually add the service to `docker-compose.yml`. If you're using
+vim, you can type `:r step4/service.yml` to insert it where the cursor is.
+
+##### `step4/service.yml`
+
+```yml
+app:
+  build:
+    context: ./
+    dockerfile: Dockerfile.app
+  environment:
+    APP_DB_HOST: mariadb
+    APP_DB_USER: wordpress
+    APP_DB_PASSWORD: "${MARIADB_WORDPRESS_PASSWORD}"
+    APP_DB_NAME: wordpress
+  depends_on:
+    - mariadb
+  restart: always
+```
+
+Copy the Dockerfile:
+
+```bash
+cp step4/Dockerfile.app Dockerfile.app
+```
+
+##### `step4/Dockerfile.app`
+
+```docker
+FROM ubuntu:rolling
+
+RUN apt-get update
+RUN apt-get upgrade -y
+RUN DEBIAN_FRONTEND=noninteractive apt-get install -y -qq curl unzip
+RUN curl -fsSL https://deno.land/x/install/install.sh | DENO_INSTALL=/ sh
+
+ADD ./app/mod.ts /app/mod.ts
+WORKDIR /app
+RUN deno cache /app/mod.ts
+
+EXPOSE 8080
+CMD ["/usr/bin/deno", "run", "--allow-net=:8080", "/app/mod.ts"]
+```
+
+Point the subdomains to by appending rules to your `Caddyfile` and editing it:
+
+```bash
+cat step4/Caddyfile >> Caddyfile
+```
+
+##### `step4/Caddyfile`
+
+```bash
+sandbox.example.com {
+  reverse_proxy app:8080
+}
+page1.sandbox.example.com {
+  reverse_proxy app:8080
+}
+page2.sandbox.example.com {
+  reverse_proxy app:8080
+}
+page3.sandbox.example.com {
+  reverse_proxy app:8080
+}
+```
+
+Note that this doesn't have the wildcard. This is to prevent it from using
+up your SSL certificate quota if someone goes to dozens of subdomains in the
+DNS wildcard. We'll fix it in step 5 by getting a wildcard SSL certificate.
+
+Now, copy the app directory out of `step4`:
+
+```bash
+cp -r step4/app app
+```
+
+##### `step4/app/mod.ts`
+
+```ts
+const server = Deno.listen({ port: 8080 })
+
+async function handleRequest(request: Deno.RequestEvent) {
+  request.respondWith(
+    new Response(`🦕`, {
+      status: 200,
+    }),
+  );
+}
+
+async function serve(conn: Deno.Conn) {
+  const httpConn = Deno.serveHttp(conn)
+
+  for await (const request of httpConn) {
+    handleRequest(request)
+  }
+}
+
+for await (const conn of server) {
+  serve(conn)
+}
+```
+
+Bring it up:
+
+```bash
+sudo docker-compose up --detach
+```
