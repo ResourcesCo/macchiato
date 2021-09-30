@@ -1,5 +1,8 @@
 # IndieAuth Client Library for Deno
 
+This is a Markdown code notebook has embedded files that can be unpacked
+with [md_unpack_simple][md_unpack_simple].
+
 ## Introduction
 
 From [IndieAuth.net][indieauth]:
@@ -43,9 +46,10 @@ application.
 
 The sign-in form will provide a field for the URL and a hidden
 [CSRF token](https://laravel.com/docs/8.x/csrf). The CSRF token will be
-hashed and verified using WebCrypto, and will expire after 10 minutes.
+hashed and verified using HMAC from WebCrypto, and will expire after 10
+minutes. See [Sign & Verify JWT (HMAC SHA256) in Deno][sign-verify-deno].
 
-`example/0/templates/sign_in.html`
+##### `example/0/templates/sign_in.html`
 
 ```html
 <!doctype html>
@@ -55,23 +59,63 @@ hashed and verified using WebCrypto, and will expire after 10 minutes.
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/water.css@2/out/water.css">
   </head>
   <body>
-    <h1>Form</h1>
+    <h1>IndieAuth sign-in example</h1>
     <main>
       <form action="/auth/indieauth" method="post">
         <label for="url"></label>
         <input type="text" name="url" id="url">
         <input type="submit" value="Sign In">
-        <input type="hidden" name="csrf_token" value="{csrf_token}">
+        <input type="hidden" name="csrf_token" value="{csrfToken}">
       </form>
     </main>
   </body>
 </html>
 ```
 
-`example/0/sign_in.ts`
+##### `example/0/sign_in.ts`
 
 ```ts
 import { listenAndServe } from "https://deno.land/std@0.108.0/http/server.ts";
+import {encode, decode} from "https://deno.land/std/encoding/base64url.ts";
+
+const secretKey = Deno.env.get('SECRET_KEY') as string;
+const key = await crypto.subtle.importKey(
+  'raw',
+  new TextEncoder().encode(secretKey),
+  {name: 'HMAC', hash: 'SHA-256'},
+  false,
+  ['sign', 'verify']
+);
+
+async function sign(text: string): Promise<string> {
+  const signature = await crypto.subtle.sign(
+    {name: "HMAC"},
+    key,
+    new TextEncoder().encode(text)
+  );
+  const encodedSignature = encode(new Uint8Array(signature));
+  return `${text}|${encodedSignature}`;
+}
+
+async function verify(signedText: string): Promise<string> {
+  const index = signedText.lastIndexOf('|');
+  if (index === -1) {
+    throw new Error('Verification failed: signature not found');
+  }
+  const signature = decode(signedText.substr(index + 1));
+  const text = signedText.substr(0, index);
+  const verified = await crypto.subtle.verify(
+    {name: "HMAC"},
+    key,
+    signature,
+    new TextEncoder().encode(text)
+  );
+  if (verified) {
+    return text
+  } else {
+    throw new Error('Verification failed: crypto.subtle.verify() returned false')
+  }
+}
 
 async function getPort(_default = 3000) {
   const desc = { name: 'env', variable: 'PORT' } as const;
@@ -84,17 +128,70 @@ async function getPort(_default = 3000) {
   }
 }
 
+async function makeCsrfToken(): Promise<string> {
+  return await sign(`csrf:${new Date().valueOf()}`);
+}
+
+async function verifyCsrfToken(csrfToken: string): Promise<boolean> {
+  const token = await verify(csrfToken);
+  const parts = token.split(':');
+  if (parts.length === 2 && parts[0] === 'csrf') {
+    const ts = parseInt(parts[1]);
+    if (Number.isInteger(ts)) {
+      const tenMinutesAgo = new Date().valueOf() - (10 * 60 * 1000);
+      return ts >= tenMinutesAgo;
+    }
+  }
+  return false;
+}
+
 const port = await getPort();
-const html = await Deno.readTextFile('./templates/sign_in.html');
-listenAndServe(`:{$port}`, () => Response(html));
+const signInTemplate = await Deno.readTextFile(
+  new URL('./templates/sign_in.html', import.meta.url)
+);
+listenAndServe(`:${port}`, async (request: Request) => {
+  try {
+    if (request.method === 'POST') {
+      const formData = await request.formData();
+      const csrfToken = formData.get('csrf_token');
+      if (typeof csrfToken !== 'string') {
+        throw new Error('Missing CSRF token');
+      }
+      const result = await verifyCsrfToken(csrfToken);
+      return new Response(
+        result ? 'Ready to redirect' : 'error',
+        {headers: {'Content-Type': 'text/html; charset=UTF-8'}}
+      )
+    } else {
+      const csrfToken = await makeCsrfToken();
+      const html = signInTemplate.replace('{csrfToken}', csrfToken);
+      return new Response(html, {headers: {'Content-Type': 'text/html; charset=UTF-8'}});
+    }
+  } catch (err) {
+    console.error(`Error handling request: ${err}`);
+    return new Response('<h1>Internal Server Error</h1>', {
+      status: 500,
+      headers: {'Content-Type': 'text/html; charset=UTF-8'},
+    });
+  }
+});
 ```
 
-To run the example:
+In the above code, there is a general-purpose sign and verify function, as well
+as a function for generating a CSRF token and a function for verifying it. The
+general-purpose sign and verify functions will be used for the state parameter
+in the next step.
+
+Run the example (set SECRET_KEY to a random string):
 
 ```bash
 cd example/0
-deno run --allow-read=./templates --allow-net=0.0.0.0:3000 sign_in.ts 3000
+deno run --allow-read=./templates --allow-net=:3000 --allow-env=SECRET_KEY sign_in.ts 3000
 ```
+
+If you go to the web server, it will show a form, and you can enter anything into
+the input and submit it (it isn't used yet) and submit it, and if it's been less
+than ten minutes since you loaded the page, it should say "Ready to redirect".
 
 ## Getting `Link` values from HTTP and HTML headers
 
@@ -161,5 +258,7 @@ ensure it's coming from the same place where the initial redirect is coming from
 
 ## Step 2: 
 
+[md_unpack_simple]: https://deno.land/x/md_unpack_simple
 [indieauth]: https://indieauth.net/
 [deno-dom-noinit]: https://deno.land/x/deno_dom@v0.1.15-alpha/deno-dom-wasm-noinit.ts
+[sign-verify-deno]: https://medium.com/deno-the-complete-reference/sign-verify-jwt-hmac-sha256-4aa72b27042a
