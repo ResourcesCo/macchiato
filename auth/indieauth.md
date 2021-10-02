@@ -193,72 +193,126 @@ If you go to the web server, it will show a form, and you can enter anything int
 the input and submit it (it isn't used yet) and submit it, and if it's been less
 than ten minutes since you loaded the page, it should say "Ready to redirect".
 
-## Getting `Link` values from HTTP and HTML headers
+## Getting the authorization_endpoint link
 
-With IndieAuth, you sign in with your URL. It then gets the authorization endpoint from the header or the
-HTML (typically through the HTML, though the header takes precedence).
-This means that it needs to parse the `<link>` out of the HTML.
+The `authorization_endpoint` `link` `rel` needs to be retrieved from the HTTP
+headers or from the HTML at the location provided in the form.
 
-Deno doesn't have an HTML parser in the standard library, so a third
-party library is needed. There is one that uses a Rust library that
-works as a Deno plugin or with WebAssembly. This will use WebAssembly
-so minimal Deno permissions are needed.
+To attempt to get it from the HTTP headers, a HEAD request will be made. These are
+third-party web servers, so a User Agent will need to be given for some, as some
+will reject requests without a User Agent. Not only that, some will reject all
+that aren't coming from the browser, so using the same User Agent a browser would
+use is something to consider. This will default to DenoIndieAuth as the user agent
+and allow it to be overridden.
 
-##### `deno_dom_link.ts`
+##### `example/1/get_endpoint_from_header.ts`
 
 ```ts
-import { DOMParser, Element } from "https://deno.land/x/deno_dom/deno-dom-wasm.ts";
-import { parse } from "https://deno.land/std@0.108.0/flags/mod.ts";
+```
 
-async function run() {
-  const flags = parse(Deno.args);
-  const [url, linkRel] = flags._;
-  if (flags._.length !== 2 || typeof url !== 'string' || typeof linkRel !== 'string') {
-    throw new Error('Usage: deno_dom_link <url> <link-rel>');
-  }
-  const resp = await fetch(url);
-  if (!resp.ok) {
-    throw new Error(`Error getting web page: ${resp.status}`);
-  }
-  const text = await resp.text();
-  const doc = new DOMParser().parseFromString(text, "text/html");
-  if (doc === null) {
-    throw new Error('Error parsing document');
-  }
-  const link = doc.querySelector(`link[rel=${linkRel}]`);
-  if (link !== null) {
-    console.log(link.getAttribute('href'));
-  } else {
-    throw new Error('Link not found');
-  }
-}
+To get the endpoint from the HTML, an HTML parser is needed. There is one on npm
+called [htmlparser2][htmlparser2] that is well maintained. To import them into
+Deno, [jspm with import maps can be used](jspm-import-maps). This was made with
+the jspm import map generator:
 
-if (import.meta.main) {
-  run();
+##### `example/1/import-map.json`
+
+```json
+{
+  "imports": {
+    "htmlparser2": "https://ga.jspm.io/npm:htmlparser2@7.1.2/lib/index.js"
+  },
+  "scopes": {
+    "https://ga.jspm.io/": {
+      "dom-serializer": "https://ga.jspm.io/npm:dom-serializer@1.3.2/lib/index.js",
+      "domelementtype": "https://ga.jspm.io/npm:domelementtype@2.2.0/lib/index.js",
+      "domhandler": "https://ga.jspm.io/npm:domhandler@4.2.2/lib/index.js",
+      "domutils": "https://ga.jspm.io/npm:domutils@2.8.0/lib/index.js",
+      "entities": "https://ga.jspm.io/npm:entities@2.2.0/lib/index.js",
+      "entities/lib/decode": "https://ga.jspm.io/npm:entities@3.0.1/lib/decode.js",
+      "entities/lib/decode_codepoint": "https://ga.jspm.io/npm:entities@3.0.1/lib/decode_codepoint.js"
+    }
+  }
 }
 ```
 
-It takes about half a second to load the WebAssembly (similar on repeated invocations):
+[It's available here, with the content encoded in the URL.](https://generator.jspm.io/#a+JhYGBkdEpMSs1RcK1IzC3ISWXIKMnNKUgsKk4tMnIw1zPUMwIASzJmfSUA)
 
+Here is a script that shows it working in Deno:
+
+##### `example/1/try_htmlparser2.ts`
+
+```ts
+import { Parser } from 'htmlparser2';
+const html = `<!doctype html>
+<html>
+<head>
+<title>Test</title>
+<link rel="authorization_endpoint" href="https://example.com/wp-json/indieauth/1.0/auth">
+</head>
+<body>
+<h1>Test</h1>
+</body>
+</html>`;
+function onopentag(name: string, attributes: any) {
+  if (name === 'link') console.log({name, attributes});
+}
+const parser = new Parser({onopentag});
+parser.write(html);
 ```
-dinosaurio@denotastic:~/macchiato/auth/indieauth$ time deno run --allow-net=benatkin.com deno_dom_link.ts https://benatkin.com/ authorization_endpoint
-https://benatkin.com/wp-json/indieauth/1.0/auth
 
-real	0m0.454s
-user	0m0.445s
-sys	0m0.095s
+It can be run with the `--import-map` flag passed to it (be sure to cd into the
+`example/1` directory):
+
+```bash
+deno run --import-map import-map.json 
 ```
 
-This cost is incurred when starting the program. It can be incurred after starting
-the program by importing a [different deno_dom module][deno-dom-noinit].
+Here's the output:
 
-This is needed to construct the URL. A state parameter is also needed. This can be
-generated and set as a cookie when redirecting. The cookie should be signed to
-ensure it's coming from the same place where the initial redirect is coming from.
+```bash
+{
+  name: "link",
+  attributes: {
+    rel: "authorization_endpoint",
+    href: "https://example.com/wp-json/indieauth/1.0/auth"
+  }
+}
+```
 
-## Step 2: 
+To make a method for getting the endpoint, we'll take the href from the first
+value, and ignore the rest.
+
+##### `example/1/get_link_from_html.ts`
+
+(not yet running)
+
+```ts
+import { Parser } from 'htmlparser2';
+
+export default function getLinkFromHtml(html: string): string {
+  return new Promise((resolve, reject) => {
+    let done = false;
+    const onopentag = (tag: string, attrs: {[key: string]: any}) => {
+      if (!done && name === 'link' && attrs['name'] === name) {
+        done = true;
+        resolve(typeof attrs['rel'] === 'string' ? attrs['rel'] : undefined);
+      }
+    }
+    const onend = () => {
+      if (!done) resolve(undefined);
+    }
+    const parser = new Parser({onopentag, onend});
+    parser.write(html);
+    parser.end();
+  })
+}
+```
 
 [md_unpack_simple]: https://deno.land/x/md_unpack_simple
 [indieauth]: https://indieauth.net/
 [deno-dom-noinit]: https://deno.land/x/deno_dom@v0.1.15-alpha/deno-dom-wasm-noinit.ts
 [sign-verify-deno]: https://medium.com/deno-the-complete-reference/sign-verify-jwt-hmac-sha256-4aa72b27042a
+[htmlparser2]: https://www.npmjs.com/package/htmlparser2
+[jspm-import-maps]: https://jspm.org/import-map-cdn
+[jspm-import-map-generator]: 
