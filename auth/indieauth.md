@@ -246,13 +246,13 @@ Here is a script that shows it working in Deno:
 import { Parser } from 'htmlparser2';
 const html = `<!doctype html>
 <html>
-<head>
-<title>Test</title>
-<link rel="authorization_endpoint" href="https://example.com/wp-json/indieauth/1.0/auth">
-</head>
-<body>
-<h1>Test</h1>
-</body>
+  <head>
+    <title>Test</title>
+    <link rel="authorization_endpoint" href="https://example.com/wp-json/indieauth/1.0/auth">
+  </head>
+  <body>
+    <h1>Test</h1>
+  </body>
 </html>`;
 function onopentag(name: string, attributes: any) {
   if (name === 'link') console.log({name, attributes});
@@ -285,18 +285,16 @@ value, and ignore the rest.
 
 ##### `example/1/get_link_from_html.ts`
 
-(not yet running)
-
 ```ts
 import { Parser } from 'htmlparser2';
 
-export default function getLinkFromHtml(html: string): string {
+export default function getLinkFromHtml(html: string, rel: string): Promise<string | undefined> {
   return new Promise((resolve, reject) => {
     let done = false;
     const onopentag = (tag: string, attrs: {[key: string]: any}) => {
-      if (!done && name === 'link' && attrs['name'] === name) {
+      if (!done && tag === 'link' && attrs['rel'] === rel) {
         done = true;
-        resolve(typeof attrs['rel'] === 'string' ? attrs['rel'] : undefined);
+        resolve(typeof attrs['href'] === 'string' ? attrs['href'] : undefined);
       }
     }
     const onend = () => {
@@ -309,10 +307,32 @@ export default function getLinkFromHtml(html: string): string {
 }
 ```
 
+##### `example/1/get_link_from_html_test.ts`
+
+```ts
+import { assertEquals } from "https://deno.land/std@0.110.0/testing/asserts.ts";
+import getLinkFromHtml from './get_link_from_html.ts';
+
+const html = `<!doctype html>
+<html>
+  <head>
+    <title>Test</title>
+    <link rel="authorization_endpoint" href="https://example.com/wp-json/indieauth/1.0/auth">
+  </head>
+  <body>
+    <h1>Test</h1>
+  </body>
+</html>`;
+
+Deno.test('example', async () => {
+  const result = await getLinkFromHtml(html, 'authorization_endpoint');
+  assertEquals(result, 'https://example.com/wp-json/indieauth/1.0/auth');
+});
+```
+
 [md_unpack_simple]: https://deno.land/x/md_unpack_simple
 [indieauth]: https://indieauth.net/
 [deno-dom-noinit]: https://deno.land/x/deno_dom@v0.1.15-alpha/deno-dom-wasm-noinit.ts
 [sign-verify-deno]: https://medium.com/deno-the-complete-reference/sign-verify-jwt-hmac-sha256-4aa72b27042a
 [htmlparser2]: https://www.npmjs.com/package/htmlparser2
 [jspm-import-maps]: https://jspm.org/import-map-cdn
-[jspm-import-map-generator]: 
