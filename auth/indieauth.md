@@ -205,9 +205,58 @@ that aren't coming from the browser, so using the same User Agent a browser woul
 use is something to consider. This will default to DenoIndieAuth as the user agent
 and allow it to be overridden.
 
-##### `example/1/get_endpoint_from_header.ts`
+##### `example/1/get_link_from_header.ts`
 
 ```ts
+const linkRegexp = /^<([^>]*)>(.*)$/;
+
+export function linkFromHeaders(
+  headers: Headers,
+  rel: string
+): string | undefined {
+  for (const linkText of (headers.get('link') ?? '').split(',')) {
+    const [href, remainingText] = (linkText.trim().match(linkRegexp) ?? []).slice(1);
+    if (href !== undefined && remainingText !== undefined) {
+      for (const s of remainingText.split(';')) {
+        const equalsIndex = s.indexOf('=');
+        const key = s.substr(0, equalsIndex).trim();
+        const value = s.substr(equalsIndex + 1).trim();
+        if (key === 'rel' && [`"${rel}"`, rel].includes(value)) {
+          return href;
+        }
+      }
+    }
+  }
+}
+
+export default async function getLinkFromHeader(
+  url: string,
+  rel: string,
+  userAgent = 'DenoIndieAuth'
+): Promise<string | undefined> {
+  const resp = await fetch(url, {
+    method: 'HEAD',
+    headers: {
+      'User-Agent': userAgent,
+    }
+  });
+  if (resp.ok) {
+    return linkFromHeaders(resp.headers, rel);
+  }
+}
+```
+
+##### `example/1/try_get_link_from_header.ts`
+
+```ts
+import getLinkFromHeader from './get_link_from_header.ts';
+
+const [url, rel] = Deno.args;
+if (![url, rel].every(a => typeof a === 'string' && a.length > 0)) {
+  throw new Error('Usage: $0 <url> <rel>');
+}
+
+const result = await getLinkFromHeader(url, rel);
 ```
 
 To get the endpoint from the HTML, an HTML parser is needed. There is one on npm
@@ -265,7 +314,7 @@ It can be run with the `--import-map` flag passed to it (be sure to cd into the
 `example/1` directory):
 
 ```bash
-deno run --import-map import-map.json 
+deno run --import-map import-map.json
 ```
 
 Here's the output:
@@ -288,7 +337,10 @@ value, and ignore the rest.
 ```ts
 import { Parser } from 'htmlparser2';
 
-export default function getLinkFromHtml(html: string, rel: string): Promise<string | undefined> {
+export default function getLinkFromHtml(
+  html: string,
+  rel: string
+): Promise<string | undefined> {
   return new Promise((resolve, reject) => {
     let done = false;
     const onopentag = (tag: string, attrs: {[key: string]: any}) => {
@@ -328,6 +380,332 @@ Deno.test('example', async () => {
   const result = await getLinkFromHtml(html, 'authorization_endpoint');
   assertEquals(result, 'https://example.com/wp-json/indieauth/1.0/auth');
 });
+```
+
+## Redirecting and checking the state
+
+Here we'll start by taking reusable parts of the last two parts and putting them
+into modules with tests. These will go in the main directory, and a new example
+will use them.
+
+##### `sign.ts`
+
+```ts
+import {encode, decode} from "https://deno.land/std/encoding/base64url.ts";
+
+export async function createSigner(key: string): Promise<Signer> {
+  const cryptoKey = await crypto.subtle.importKey(
+    'raw',
+    new TextEncoder().encode(key),
+    {name: 'HMAC', hash: 'SHA-256'},
+    false,
+    ['sign', 'verify']
+  );
+  return new Signer(cryptoKey);
+}
+
+class Signer {
+  #key: CryptoKey
+
+  constructor(key: CryptoKey) {
+    this.#key = key;
+  }
+
+  async sign(text: string): Promise<string> {
+    const signature = await crypto.subtle.sign(
+      {name: "HMAC"},
+      this.#key,
+      new TextEncoder().encode(text)
+    );
+    const encodedSignature = encode(new Uint8Array(signature));
+    return `${text}|${encodedSignature}`;
+  }
+
+  async verify(signedText: string): Promise<string> {
+    const index = signedText.lastIndexOf('|');
+    if (index === -1) {
+      throw new Error('Verification failed: signature not found');
+    }
+    const signature = decode(signedText.substr(index + 1));
+    const text = signedText.substr(0, index);
+    const verified = await crypto.subtle.verify(
+      {name: "HMAC"},
+      this.#key,
+      signature,
+      new TextEncoder().encode(text)
+    );
+    if (verified) {
+      return text
+    } else {
+      throw new Error('Verification failed: crypto.subtle.verify() returned false')
+    }
+  }
+}
+```
+
+##### `sign_test.ts`
+
+```ts
+import {
+  assert,
+  assertEquals,
+  assertStringIncludes,
+  assertRejects
+} from "https://deno.land/std@0.110.0/testing/asserts.ts";
+import { createSigner } from "./sign.ts";
+
+Deno.test('signs and verifies successfully', async () => {
+  const input = 'hello';
+  const signer = await createSigner('abcweaerewjnlnwej9302432n423ajfwnenwjewjajjfajwl');
+  const signed = await signer.sign(input);
+  assertStringIncludes(signed, '|');
+  const verified = await signer.verify(signed);
+  assertEquals(input, verified);
+})
+
+Deno.test("verification fails with missing or wrong signature", async () => {
+  const input = 'hello';
+  const signer = await createSigner('abcweaerewjnlnwej9302432n423ajfwnenwjewjajjfajwl');
+  const signed = await signer.sign(input);
+  await assertRejects(() => signer.verify(input));
+  const signed2 = await signer.sign('world');
+  const switched = `${signed.split('|')[0]}|${signed2.split('|')[1]}`;
+  await assertRejects(() => signer.verify(switched));
+})
+```
+
+##### `import-map.json`
+
+```json
+{
+  "imports": {
+    "htmlparser2": "https://ga.jspm.io/npm:htmlparser2@7.1.2/lib/index.js"
+  },
+  "scopes": {
+    "https://ga.jspm.io/": {
+      "dom-serializer": "https://ga.jspm.io/npm:dom-serializer@1.3.2/lib/index.js",
+      "domelementtype": "https://ga.jspm.io/npm:domelementtype@2.2.0/lib/index.js",
+      "domhandler": "https://ga.jspm.io/npm:domhandler@4.2.2/lib/index.js",
+      "domutils": "https://ga.jspm.io/npm:domutils@2.8.0/lib/index.js",
+      "entities": "https://ga.jspm.io/npm:entities@2.2.0/lib/index.js",
+      "entities/lib/decode": "https://ga.jspm.io/npm:entities@3.0.1/lib/decode.js",
+      "entities/lib/decode_codepoint": "https://ga.jspm.io/npm:entities@3.0.1/lib/decode_codepoint.js"
+    }
+  }
+}
+```
+
+[Source](https://generator.jspm.io/#a+JhYGBkdEpMSs1RcK1IzC3ISWXIKMnNKUgsKk4tMnIw1zPUMwIASzJmfSUA)
+
+##### `get_html_links.ts`
+
+```ts
+import { Parser } from 'htmlparser2';
+
+export default async function getHtmlLinks(
+  response: Response,
+  rels: string[]
+): Promise<{[key: string]: string}> {
+  const html = await response.text();
+  return await new Promise((resolve, reject) => {
+    let done = false;
+    const links: {[key: string]: string} = {};
+    const checkAndResolve = (force = false) => {
+      if (force || rels.every(rel => links[rel] !== undefined)) {
+        done = true;
+        resolve(links);
+      }
+    }
+    const onopentag = (tag: string, attrs: {[key: string]: any}) => {
+      if (
+        !done &&
+        tag === 'link' &&
+        rels.includes(attrs['rel']) &&
+        links[attrs['rel']] === undefined
+      ) {
+        links[attrs['rel']] = attrs['href'] ?? ''
+        checkAndResolve();
+      }
+    }
+    const onend = () => {
+      if (!done) checkAndResolve(true);
+    }
+    const parser = new Parser({onopentag, onend});
+    parser.write(html);
+    parser.end();
+  });
+}
+```
+
+##### `get_html_links_test.ts`
+
+```ts
+import { assertEquals } from "https://deno.land/std@0.110.0/testing/asserts.ts";
+import getHtmlLinks from './get_html_links.ts';
+
+const html = `<!doctype html>
+<html>
+  <head>
+    <title>Test</title>
+    <link rel="authorization_endpoint" href="https://example.com/wp-json/indieauth/1.0/auth">
+  </head>
+  <body>
+    <h1>Test</h1>
+  </body>
+</html>`;
+
+Deno.test('read html link', async () => {
+  const links = await getHtmlLinks(new Response(html), ['authorization_endpoint']);
+  assertEquals(
+    links['authorization_endpoint'],
+    'https://example.com/wp-json/indieauth/1.0/auth'
+  );
+});
+```
+
+##### `get_links.ts`
+
+```ts
+const linkRegexp = /^<([^>]*)>(.*)$/;
+
+export function linksFromHeaders(
+  headers: Headers,
+  rels: string
+): {[key: string]: string} {
+  const result: {[key: string]: string} = {};
+  for (const linkText of (headers.get('link') ?? '').split(',')) {
+    const [href, remainingText] = (linkText.trim().match(linkRegexp) ?? []).slice(1);
+    if (href !== undefined && remainingText !== undefined) {
+      for (const s of remainingText.split(';')) {
+        const equalsIndex = s.indexOf('=');
+        const key = s.substr(0, equalsIndex).trim();
+        const value = s.substr(equalsIndex + 1).trim();
+        if (key === 'rel') {
+          for (const rel of rels) {
+            if (result[rel] === undefined && [`"${rel}"`, rel].includes(value)) {
+              result[key] = value;
+              if (rels.every(rel => result[rel] !== undefined)) {
+                return result;
+              }
+            }
+          }
+          break;
+        }
+      }
+    }
+  }
+  return result;
+}
+
+// Client for customizing request and helping with testing
+type Client = (request: Request) => Promise<Response>
+
+function makeDefaultClient(userAgent: string): Client {
+  return (request) => {
+    const newReq = request.clone();
+    if (!newReq.headers.get('User-Agent')) {
+      newReq.headers.set('User-Agent', userAgent);
+    }
+    return fetch(newReq);
+  }
+}
+
+type LinkReader = (
+  response: Response,
+  rels: string[]
+) => Promise<{[key: string]: string}>
+
+type GetLinksOptions = {
+  userAgent?: string,
+  makeHeadRequest?: boolean,
+  getHtmlLinks: LinkReader,
+  client?: Client
+};
+export default async function getLinks(
+  url: string,
+  rels: string[],
+  {
+    userAgent = 'DenoIndieAuth',
+    makeHeadRequest = false,
+    client: clientOption
+  }: GetLinksOptions,
+): Promise<{[key: string]: string}> {
+  const client = clientOption ?? makeDefaultClient(userAgent);
+  const linkResults: {[key: string]: string}[] = [];
+  const getResult = (partial: boolean = false) => {
+    const result = linkResults.reduceRight(
+      (acc, v) => ({...acc, ...v}), {}
+    )
+    if (partial || rels.every(rel => result[rel]) {
+      return result;
+    }
+  }
+  if (makeHeadRequest) {
+    const resp = await client(new Request(url, {
+      method: 'HEAD',
+      headers: {
+        'User-Agent': userAgent,
+      }
+    }));
+    if (resp.ok) {
+      linkResults.push(linksFromHeaders(resp.headers, rel));
+      if (Object.keys(linkResults.at(-1) ?? {}).length > 0) {
+        const result = getResult();
+        if (result !== undefined) {
+          return result;
+        }
+      }
+    }
+  }
+  const resp = await client(new Request(url, {
+    headers: {
+      'Accept': 'text/html',
+      'User-Agent': userAgent,
+    },
+  }));
+  if (resp.ok) {
+    linkResults.push(linksFromHeaders(resp.headers, rel));
+    if (Object.keys(linkResults.at(-1) ?? {}).length > 0) {
+      const result = getResult();
+      if (result !== undefined) {
+        return result;
+      }
+    }
+    const html = await resp.text();
+    try {
+      const links = await linksFromHtml(html, rels);
+    } catch (err) {
+      // do nothing
+    }
+  }
+  return getResult(true) ?? {};
+}
+```
+
+##### `get_links_test.ts`
+
+```ts
+import { assertEquals } from "https://deno.land/std@0.110.0/testing/asserts.ts";
+import getHtmlLinks from './get_html_links.ts';
+import getLinks from './get_links.ts';
+
+const client: (request: Request) => Promise<Response> = async (request) => {
+  const link = '<https://example.com/auth> rel="authorization_endpoint"';
+  if (request.method === 'HEAD') {
+    return new Response(undefined, { headers: {'Link': link} });
+  } else {
+    return new Response(undefined, { status: 500 });
+  }
+}
+
+Deno.test('from head', async () => {
+  const links = await getLinks(
+    'https://example.com/testuser',
+    ['authorization_endpoint', 'misc'],
+    {client, getHtmlLinks}
+  );
+  assertEquals(links['authorization_endpoint'], 'https://example.com/auth');
+})
 ```
 
 [md_unpack_simple]: https://deno.land/x/md_unpack_simple
