@@ -285,7 +285,7 @@ the jspm import map generator:
 }
 ```
 
-[It's available here, with the content encoded in the URL.](https://generator.jspm.io/#a+JhYGBkdEpMSs1RcK1IzC3ISWXIKMnNKUgsKk4tMnIw1zPUMwIASzJmfSUA)
+[It's available here, with the parameters encoded in the URL.](https://generator.jspm.io/#a+JhYGBkdEpMSs1RcK1IzC3ISWXIKMnNKUgsKk4tMnIw1zPUMwIASzJmfSUA)
 
 Here is a script that shows it working in Deno:
 
@@ -384,9 +384,13 @@ Deno.test('example', async () => {
 
 ## Redirecting and checking the state
 
-Here we'll start by taking reusable parts of the last two parts and putting them
-into modules with tests. These will go in the main directory, and a new example
-will use them.
+Here we'll start by taking features from above and putting them into modules
+with tests. These will go in the main directory, and a new example will use
+them.
+
+### Signing
+
+For signing, the code from []
 
 ##### `sign.ts`
 
@@ -568,9 +572,9 @@ Deno.test('read html link', async () => {
 ```ts
 const linkRegexp = /^<([^>]*)>(.*)$/;
 
-export function linksFromHeaders(
+export function getHeaderLinks(
   headers: Headers,
-  rels: string
+  rels: string[]
 ): {[key: string]: string} {
   const result: {[key: string]: string} = {};
   for (const linkText of (headers.get('link') ?? '').split(',')) {
@@ -583,7 +587,7 @@ export function linksFromHeaders(
         if (key === 'rel') {
           for (const rel of rels) {
             if (result[rel] === undefined && [`"${rel}"`, rel].includes(value)) {
-              result[key] = value;
+              result[rel] = href;
               if (rels.every(rel => result[rel] !== undefined)) {
                 return result;
               }
@@ -616,17 +620,18 @@ type LinkReader = (
 ) => Promise<{[key: string]: string}>
 
 type GetLinksOptions = {
+  getHtmlLinks: LinkReader,
   userAgent?: string,
   makeHeadRequest?: boolean,
-  getHtmlLinks: LinkReader,
   client?: Client
 };
 export default async function getLinks(
   url: string,
   rels: string[],
   {
+    getHtmlLinks,
     userAgent = 'DenoIndieAuth',
-    makeHeadRequest = false,
+    makeHeadRequest = true,
     client: clientOption
   }: GetLinksOptions,
 ): Promise<{[key: string]: string}> {
@@ -636,7 +641,7 @@ export default async function getLinks(
     const result = linkResults.reduceRight(
       (acc, v) => ({...acc, ...v}), {}
     )
-    if (partial || rels.every(rel => result[rel]) {
+    if (partial || rels.every(rel => result[rel])) {
       return result;
     }
   }
@@ -648,7 +653,7 @@ export default async function getLinks(
       }
     }));
     if (resp.ok) {
-      linkResults.push(linksFromHeaders(resp.headers, rel));
+      linkResults.push(getHeaderLinks(resp.headers, rels));
       if (Object.keys(linkResults.at(-1) ?? {}).length > 0) {
         const result = getResult();
         if (result !== undefined) {
@@ -664,16 +669,15 @@ export default async function getLinks(
     },
   }));
   if (resp.ok) {
-    linkResults.push(linksFromHeaders(resp.headers, rel));
+    linkResults.push(getHeaderLinks(resp.headers, rels));
     if (Object.keys(linkResults.at(-1) ?? {}).length > 0) {
       const result = getResult();
       if (result !== undefined) {
         return result;
       }
     }
-    const html = await resp.text();
     try {
-      const links = await linksFromHtml(html, rels);
+      const links = await getHtmlLinks(resp, rels);
     } catch (err) {
       // do nothing
     }
@@ -689,23 +693,73 @@ import { assertEquals } from "https://deno.land/std@0.110.0/testing/asserts.ts";
 import getHtmlLinks from './get_html_links.ts';
 import getLinks from './get_links.ts';
 
-const client: (request: Request) => Promise<Response> = async (request) => {
-  const link = '<https://example.com/auth> rel="authorization_endpoint"';
-  if (request.method === 'HEAD') {
-    return new Response(undefined, { headers: {'Link': link} });
-  } else {
-    return new Response(undefined, { status: 500 });
-  }
-}
-
 Deno.test('from head', async () => {
+  const client: (request: Request) => Promise<Response> = async (request) => {
+    const link = '<https://example.com/auth> rel="authorization_endpoint"';
+    if (request.method.toUpperCase() === 'HEAD') {
+      return new Response(undefined, { headers: {'Link': link} });
+    } else {
+      return new Response(undefined, { status: 500 });
+    }
+  }
   const links = await getLinks(
     'https://example.com/testuser',
     ['authorization_endpoint', 'misc'],
     {client, getHtmlLinks}
   );
   assertEquals(links['authorization_endpoint'], 'https://example.com/auth');
-})
+});
+
+Deno.test('from html', async () => {
+  const client: (request: Request) => Promise<Response> = async (request) => {
+    const link = '<https://example.com/auth> rel="authorization_endpoint"';
+    if (request.method.toUpperCase() === 'HEAD') {
+      return new Response(undefined, { headers: {'Link': link} });
+    } else {
+      return new Response(undefined, { status: 500 });
+    }
+  }
+  const links = await getLinks(
+    'https://example.com/testuser',
+    ['authorization_endpoint', 'misc'],
+    {client, getHtmlLinks}
+  );
+  assertEquals(links['authorization_endpoint'], 'https://example.com/auth');
+});
+
+Deno.test('from both', async () => {
+  const client: (request: Request) => Promise<Response> = async (request) => {
+    const link = '<https://example.com/auth> rel="authorization_endpoint"';
+    if (request.method.toUpperCase() === 'HEAD') {
+      return new Response(undefined, { headers: {'Link': link} });
+    } else {
+      return new Response(undefined, { status: 500 });
+    }
+  }
+  const links = await getLinks(
+    'https://example.com/testuser',
+    ['authorization_endpoint', 'misc'],
+    {client, getHtmlLinks}
+  );
+  assertEquals(links['authorization_endpoint'], 'https://example.com/auth');
+});
+
+Deno.test('from head', async () => {
+  const client: (request: Request) => Promise<Response> = async (request) => {
+    const link = '<https://example.com/auth> rel="authorization_endpoint"';
+    if (request.method.toUpperCase() === 'HEAD') {
+      return new Response(undefined, { headers: {'Link': link} });
+    } else {
+      return new Response(undefined, { status: 500 });
+    }
+  }
+  const links = await getLinks(
+    'https://example.com/testuser',
+    ['authorization_endpoint', 'misc'],
+    {client, getHtmlLinks}
+  );
+  assertEquals(links['authorization_endpoint'], 'https://example.com/auth');
+});
 ```
 
 [md_unpack_simple]: https://deno.land/x/md_unpack_simple
