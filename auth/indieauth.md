@@ -22,21 +22,21 @@ will support:
    it can sign in with the identity URL. It gets the **authorization_endpoint**
    from the URL and uses that to construct a redirect URL. This redirect
    URL contains the URL of the client as well as any permissions being
-   requested. It also contains a scope parameter that is used to check
-   that the user that completes sign-in is the same one who initiated
-   sign-in.
-3. When the user is redirected, the authorization server gets information
+   requested. It also contains a [PKCE Code Challenge][pkce] and a state
+   parameter that are used to check that the user that completes sign-in is
+   the same one who initiated sign-in.
+4. When the user is redirected, the authorization server gets information
    about the client, so it can use that information when asking if the user
    would like to sign into the client with their identity, and with access
    permissions. It shows a sign-in form to the user. When the user approves
    sign-in, it redirects back to the client, with a temporary
    **authorization code**.
-4. The client receives the redirect with the authorization code and uses
+5. The client receives the redirect with the authorization code and uses
    the code to get an access token as well as a profile url. The client
    also checks the state parameter. If it doesn't match, it denies access.
    The client checks that the user's profile URL declares the same
    authorization server.
-5. The client redirects the user, and stores the access token for future use,
+6. The client redirects the user, and stores the access token for future use,
    if needed. The user is now signed in.
 
 Some parts of this will be in the library and some will be in an example
@@ -382,15 +382,23 @@ Deno.test('example', async () => {
 });
 ```
 
+## PKCE
+
+PKCE uses a code challenge method to ensure that the client requesting an
+authorization code and the client using the authorization code are the
+same. The code challenge method is SHA-256. Deno has support for this in
+its standard library's [hash module][hash-module].
+
 ## Redirecting and checking the state
 
 Here we'll start by taking features from above and putting them into modules
 with tests. These will go in the main directory, and a new example will use
 them.
 
-### Signing
+### Signing and verifying
 
-For signing, the code from []
+The signer and verifier takes a secret key, which is stored in a private
+variable of a class.
 
 ##### `sign.ts`
 
@@ -477,6 +485,11 @@ Deno.test("verification fails with missing or wrong signature", async () => {
   await assertRejects(() => signer.verify(switched));
 })
 ```
+
+### HTML Links
+
+This uses an HTML parser library from npm, via jspm, to get the requested
+`<link>` values.
 
 ##### `import-map.json`
 
@@ -566,6 +579,10 @@ Deno.test('read html link', async () => {
   );
 });
 ```
+
+### Links from headers or HTML
+
+This gets link values from the headers or the HTML.
 
 ##### `get_links.ts`
 
@@ -762,9 +779,15 @@ Deno.test('from head', async () => {
 });
 ```
 
+### Constructing the redirect URL
+
+### Redirecting with cookies for the state and code challenge
+
 [md_unpack_simple]: https://deno.land/x/md_unpack_simple
 [indieauth]: https://indieauth.net/
 [deno-dom-noinit]: https://deno.land/x/deno_dom@v0.1.15-alpha/deno-dom-wasm-noinit.ts
 [sign-verify-deno]: https://medium.com/deno-the-complete-reference/sign-verify-jwt-hmac-sha256-4aa72b27042a
 [htmlparser2]: https://www.npmjs.com/package/htmlparser2
 [jspm-import-maps]: https://jspm.org/import-map-cdn
+[pkce]: https://indieweb.org/PKCE
+[hash-module]: https://deno.land/std@0.112.0/hash
