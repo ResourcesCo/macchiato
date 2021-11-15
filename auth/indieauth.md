@@ -398,7 +398,14 @@ them.
 ### Signing and verifying
 
 The signer and verifier takes a secret key, which is stored in a private
-variable of a class.
+variable of a class. It signs and verifies using HMAC. The algorithm and
+the key are supplied by the server. Unlike jwt, it doesn't provide an
+option for the client to supply their own algorithm, which [on some
+badly-configured installations could include "none"](jwt-alg-none).
+
+This only supports one key per signer instance, but a caller can try
+verifying a key with more than one signer instance in order to support
+gradually moving to a new key without signing everyone out.
 
 ##### `sign.ts`
 
@@ -791,3 +798,4 @@ Deno.test('from head', async () => {
 [jspm-import-maps]: https://jspm.org/import-map-cdn
 [pkce]: https://indieweb.org/PKCE
 [hash-module]: https://deno.land/std@0.112.0/hash
+[jwt-alg-none]: https://auth0.com/blog/critical-vulnerabilities-in-json-web-token-libraries/
