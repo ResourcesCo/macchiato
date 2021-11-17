@@ -1,3 +1,8 @@
+# Extension
+
+This is a browser extension that shows a keyboard-friendly dashboard upon
+pressing Command-Shift-P (same as Visual Studio Code).
+
 ##### `manifest.json`
 
 ```json
@@ -33,9 +38,23 @@
 ##### `style.css`
 
 ```css
-body {
+html {
   background-color: #ccc;
+  width: 360px;
+  height: 480px;
 }
+
+@media (prefers-color-scheme: dark) {
+  html {
+    background-color: #171720;
+    color: #f7f7f7;
+  }
+}
+```
+
+##### `app.js`
+
+```js
 ```
 
 ##### `popup.html`
@@ -45,6 +64,7 @@ body {
 <html>
   <head>
     <link rel="stylesheet" href="style.css">
+    <script type="module" src="app.js"></script>
   </head>
   <body>
     <div>Projects on left</div>
