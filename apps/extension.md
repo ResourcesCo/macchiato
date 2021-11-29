@@ -1,7 +1,7 @@
 # Extension
 
 This is a browser extension that shows a keyboard-friendly dashboard upon
-pressing Command-Shift-P (same as Visual Studio Code).
+pressing Command-Shift-E (same as Visual Studio Code).
 
 ##### `manifest.json`
 
@@ -16,13 +16,13 @@ pressing Command-Shift-P (same as Visual Studio Code).
   },
   "permissions": ["storage"],
   "action": {
-    "default_popup": "popup.html"
+    "default_popup": "index.html"
   },
   "commands": {
     "_execute_action": {
       "suggested_key": {
-        "default": "Ctrl+Shift+P",
-        "mac": "Command+Shift+P"
+        "default": "Ctrl+Shift+E",
+        "mac": "Command+Shift+E"
       },
       "description": "Open Macchiato"
     }
@@ -40,8 +40,8 @@ pressing Command-Shift-P (same as Visual Studio Code).
 ```css
 html {
   background-color: #ccc;
-  width: 360px;
-  height: 480px;
+  width: 600px;
+  height: 600px;
 }
 
 body {
@@ -137,13 +137,20 @@ div, body {
 ##### `app.js`
 
 ```js
+window.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('open').addEventListener('click', () => {
+    chrome.tabs.create({
+      url: '/index.html',
+    });
+  })
+});
 ```
 
-##### `popup.html`
+##### `index.html`
 
 ```html
 <!doctype html>
-<html>
+<html lang="en">
   <head>
     <meta charset="utf-8">
     <link rel="stylesheet" href="style.css">
@@ -158,6 +165,7 @@ div, body {
       </div>
       <div class="content">
         <input type="text">
+        <button id="open">Open</button>
       </div>
     </div>
   </body>
