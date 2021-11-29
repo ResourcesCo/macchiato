@@ -12,13 +12,14 @@ Local Storage.
 
 ```html
 <script setup>
+import { watchEffect } from 'vue'
 import { usePreferredDark } from '@vueuse/core'
 import { useQuasar } from 'quasar'
 import HelloWorld from './components/HelloWorld.vue'
 
 const $q = useQuasar()
 const isDark = usePreferredDark()
-$q.dark.set(isDark.value)
+watchEffect(() => $q.dark.set(isDark.value))
 </script>
 
 <template>

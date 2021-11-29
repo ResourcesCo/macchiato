@@ -208,7 +208,7 @@ export default defineConfig({
   ],
   server: {
     hmr: {
-      host: "studio.sandbox.benatkin.com",
+      host: "vite-project.sandbox.example.com",
       port: 443,
       protocol: 'wss',
     },
