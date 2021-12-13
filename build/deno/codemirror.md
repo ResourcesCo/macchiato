@@ -3,16 +3,18 @@
 Here we'll build a CodeMirror 6 editor with Deno using a custom-built
 sourcemap, with raw TypeScript files from GitHub via jsdelivr.
 
-## Importing from jsDelivr
+## Loading modules directly from the source
+
+### Importing from jsDelivr
 
 CodeMirror 6 is a powerful and very modular code editor. Two commonly
-used modules are [@codemirror/view][https://github.com/codemirror/view]
-and [@codemirror/state][https://github.com/codemirror/state]. The `view`
+used modules are [@codemirror/view](https://github.com/codemirror/view)
+and [@codemirror/state](https://github.com/codemirror/state). The `view`
 module provides the core user interface, and depends on the `state`
 module to keep track of the state. The `state` module doesn't depend
 on the DOM so we'll start by running it in Deno, which provides a lot
 of browser APIs but not the DOM. However, the state library depends on
-one library, [@codemirror/text][https://github.com/codemirror/text].
+one library, [@codemirror/text](https://github.com/codemirror/text).
 This one has no external dependencies, so we'll start by getting it
 to run inside of Deno. Within it are several modules. Here they are
 with their dependencies:
@@ -55,7 +57,7 @@ go in the middle of the apple, which is two characters long, so for
 2 2 3 1 2
 ```
 
-## Importing a file with a single dependency
+### Importing a file with a single dependency
 
 CodeMirror's relative imports omit the extension, and the build
 tools support it by automatically finding files that have the
@@ -145,7 +147,7 @@ being given - it just allows the import map to assist in getting
 the full filename, much like it uses the URL module to map relative
 URLs to absolute URLs.
 
-## Importing a module
+### Importing a module
 
 We've learned how to make it so a CodeMirror module can import
 another module from the same package inside of Deno.
@@ -275,7 +277,7 @@ We'll add them to the import map, so the number of changes in the
 patched file is kept to a minimum, and so no changes are needed to
 the patched file just to bump the version.
 
-## Importing a module by patching with scoped import map entries
+### Importing a module by patching with scoped import map entries
 
 The `char` import needs to be added as
 `./patch/codemirror/text@0.19.5/src/char` in the import map. Relative
@@ -330,9 +332,7 @@ Run it:
 
 ```bash
 > deno run --import-map e5/import-map.json e5/main.js
-Check file:///Users/bat/proyectos/notebook/macchiato/build/web/deno/codemirror/basic/e4/main.js
-error: Cannot load module "file:///Users/bat/proyectos/notebook/macchiato/build/web/deno/codemirror/basic/e4/patch/codemirror/text@0.19.5/src/char.ts".
-    at file:///Users/bat/proyectos/notebook/macchiato/build/web/deno/codemirror/basic/e4/patch/codemirror/text@0.19.5/src/index.ts:1:75
+[ 0, 2, 3, 4 ]
 ```
 
 It works!
@@ -344,13 +344,112 @@ There are several operations that needed to be done for this module:
 3. Move exported types from the `export` statement to an `export type`
    statement
 
-## Importing a module that depends on another module
+### Importing a module that depends on another module
 
+Let's get [@codemirror/state](https://github.com/codemirror/state),
+which depends on [@codemirror/text](https://github.com/codemirror/text),
+working. Soon we'll need to start automating the build, as there are
+dozens of packages needed to build a full-featured CodeMirror 6 editor, but
+let's do this manually first.
 
+##### `e6/patch/codemirror/text@0.19.5/src/index.ts`
 
----
+```ts
+export {findClusterBreak, codePointAt, fromCodePoint, codePointSize} from "./char"
+export {countColumn, findColumn} from "./column"
+export {Line, Text} from "./text"
+export type {TextIterator} from "./text"
+```
+
+##### `e6/patch/codemirror/state@0.19.6/src/index.ts`
+
+```ts
+export {EditorState} from "./state"
+export type {EditorStateConfig} from "./state"
+export type {StateCommand} from "./extension"
+export {Facet, StateField, Prec, Compartment} from "./facet"
+export type {Extension} from "./facet"
+export {EditorSelection, SelectionRange} from "./selection"
+export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from "./transaction"
+export type {TransactionSpec} from "./transaction"
+export {Text} from "@codemirror/text"
+export {combineConfig} from "./config"
+export {ChangeSet, ChangeDesc, MapMode} from "./change"
+export type {ChangeSpec} from "./change"
+export {CharCategory} from "./charcategory"
+```
+
+##### `e6/import-map.json`
+
+```json
+{
+  "imports": {
+    "@codemirror/text": "./patch/codemirror/text@0.19.5/src/index.ts",
+    "@codemirror/state": "./patch/codemirror/state@0.19.6/src/index.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/char": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/char.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/state": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/state.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/extension": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/extension.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/facet": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/facet.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/selection": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/selection.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/transaction": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/transaction.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/config": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/config.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/change": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/change.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/charcategory": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/charcategory.ts"
+  },
+  "scopes": {
+    "./patch/codemirror/text@0.19.5/src/index.ts": {
+      "./patch/codemirror/text@0.19.5/src/char": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/char.ts",
+    "./patch/codemirror/text@0.19.5/src/column": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/column.ts",
+    "./patch/codemirror/text@0.19.5/src/text": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/text.ts"
+    },
+    "./patch/codemirror/state@0.19.6/src/index.ts": {
+      "./patch/codemirror/state@0.19.6/src/state": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/state.ts",
+      "./patch/codemirror/state@0.19.6/src/extension": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/extension.ts",
+      "./patch/codemirror/state@0.19.6/src/facet": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/facet.ts",
+      "./patch/codemirror/state@0.19.6/src/selection": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/selection.ts",
+      "./patch/codemirror/state@0.19.6/src/transaction": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/transaction.ts",
+      "./patch/codemirror/state@0.19.6/src/config": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/config.ts",
+      "./patch/codemirror/state@0.19.6/src/change": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/change.ts",
+      "./patch/codemirror/state@0.19.6/src/charcategory": "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.6/src/charcategory.ts"
+    }
+  }
+}
+```
+
+##### `e6/main.js`
+
+```js
+// based on *minimum viable editor* from https://codemirror.net/6/docs/guide/
+import { EditorState } from "@codemirror/state";
+const startState = EditorState.create({
+  doc: "Hello World",
+  extensions: []
+});
+console.log(`The document's length is ${startState.doc.length}`);
+```
+
+Run it:
+
+```bash
+> deno run --import-map e6/import-map.json e6/main.js
+The document's length is 11
+```
 
 By the way, the `--import-map` can also be passed to `deno repl`,
 `deno cache`, `deno eval`, among other deno commands.
+
+### On to building a working editor
+
+This looks like it's going to work! The patching of the `index.ts`
+files is a layer of indirection, but at least the files are short
+and only one per module so far. It's nice that the bulk of the code
+is loaded unmodified from the official CodeMirror projects.
+
+Modules are now being loaded directly from the source. It is getting
+tedious, though, so we'll write a script that uses the GitHub API to
+build the import maps and start the patches automatically. We'll also
+provide a way to do a diff of the patches, so it's easy to check that
+it's patched properly. To check that the import map is correct, users
+of the library can run the script and compare the output.
 
 [jsDelivr-gh]: https://www.jsdelivr.com/?docs=gh
