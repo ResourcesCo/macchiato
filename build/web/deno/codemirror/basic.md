@@ -218,13 +218,23 @@ small repo that runs CodeMirror with Deno and the Deno bundler.
 
 ## Importing a module by patching
 
+We'll need to create a patch for `index.ts`. Patches will be needed for
+a number of files, so we'll include the name and version of the module
+and also its GitHub organization, since syntax highlighting CodeMirror
+depends on [Lezer](https://lezer.codemirror.net/) which is under a
+different organization and it may need to be patched as well and it's
+good to keep them separate.
+
+The first change is to make it use `export type` for `TextIterator`.
+Let's see if this works.
+
 ##### `e4/patch/codemirror/text@0.19.5/src/index.ts`
 
-```
-export {findClusterBreak, codePointAt, fromCodePoint, codePointSize} from "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/char.ts"
-export {countColumn, findColumn} from "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/column.ts"
-export {Line, Text} from "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/text.ts"
-export type {TextIterator} from "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/text.ts"
+```ts
+export {findClusterBreak, codePointAt, fromCodePoint, codePointSize} from "./char"
+export {countColumn, findColumn} from "./column"
+export {Line, Text} from "./text"
+export type {TextIterator} from "./text"
 ```
 
 ##### `e4/import-map.json`
@@ -233,6 +243,9 @@ export type {TextIterator} from "https://cdn.jsdelivr.net/gh/codemirror/text@0.1
 {
   "imports": {
     "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/char": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/char.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/column": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/column.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/index": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/index.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/text": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/text.ts",
     "@codemirror/text": "./patch/codemirror/text@0.19.5/src/index.ts"
   }
 }
@@ -249,7 +262,77 @@ Run it:
 
 ```bash
 > deno run --import-map e4/import-map.json e4/main.js
-[ 0, 2, 3, 4 ]
+Check file:///Users/bat/proyectos/notebook/macchiato/build/web/deno/codemirror/basic/e4/main.js
+error: Cannot load module "file:///Users/bat/proyectos/notebook/macchiato/build/web/deno/codemirror/basic/e4/patch/codemirror/text@0.19.5/src/char".
+    at file:///Users/bat/proyectos/notebook/macchiato/build/web/deno/codemirror/basic/e4/patch/codemirror/text@0.19.5/src/index.ts:1:75
+```
+
+The imports are local to the patched file, so the imports in the
+patched file either need to be converted to absolute URLs or added to
+the source map.
+
+We'll add them to the import map, so the number of changes in the
+patched file is kept to a minimum, and so no changes are needed to
+the patched file just to bump the version.
+
+## Importing a module by patching with scoped import map entries
+
+The `char` import needs to be added as
+`./patch/codemirror/text@0.19.5/src/char` in the import map. Relative
+entries in the import map are relative to the URL of the import map.
+This import map addition is only needed for the patched file, so
+we can use a scope in the import map so it only applies to it.
+This will also help in case we didn't want to put each patched file
+into its own directory.
+
+[The import-maps README shows how to use scopes.](https://github.com/WICG/import-maps#scoping-examples)
+In the top level of the import map, add a key called "scopes", and
+beneath that, add a key for each scope. Within each scope, define a
+key/value import map just like in `"imports"`. The scope can be a
+path if it ends with `"/"` or just a single module. We'll use a
+single module.
+
+##### `e5/patch/codemirror/text@0.19.5/src/index.ts`
+
+```ts
+export {findClusterBreak, codePointAt, fromCodePoint, codePointSize} from "./char"
+export {countColumn, findColumn} from "./column"
+export {Line, Text} from "./text"
+export type {TextIterator} from "./text"
+```
+
+##### `e5/import-map.json`
+
+```json
+{
+  "imports": {
+    "@codemirror/text": "./patch/codemirror/text@0.19.5/src/index.ts",
+    "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/char": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/char.ts"
+  },
+  "scopes": {
+    "./patch/codemirror/text@0.19.5/src/index.ts": {
+      "./patch/codemirror/text@0.19.5/src/char": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/char.ts",
+    "./patch/codemirror/text@0.19.5/src/column": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/column.ts",
+    "./patch/codemirror/text@0.19.5/src/text": "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.5/src/text.ts"
+    }
+  }
+}
+```
+
+##### `e5/main.js`
+
+```js
+import { countColumn } from "@codemirror/text";
+console.log([0, 1, 2, 3].map(i => countColumn("\tTest", 2, i)));
+```
+
+Run it:
+
+```bash
+> deno run --import-map e5/import-map.json e5/main.js
+Check file:///Users/bat/proyectos/notebook/macchiato/build/web/deno/codemirror/basic/e4/main.js
+error: Cannot load module "file:///Users/bat/proyectos/notebook/macchiato/build/web/deno/codemirror/basic/e4/patch/codemirror/text@0.19.5/src/char.ts".
+    at file:///Users/bat/proyectos/notebook/macchiato/build/web/deno/codemirror/basic/e4/patch/codemirror/text@0.19.5/src/index.ts:1:75
 ```
 
 It works!
@@ -262,6 +345,8 @@ There are several operations that needed to be done for this module:
    statement
 
 ## Importing a module that depends on another module
+
+
 
 ---
 
