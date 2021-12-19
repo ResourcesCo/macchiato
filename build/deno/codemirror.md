@@ -32,7 +32,8 @@ For this, we're going to import the source directly, like you do when
 using a library from [deno.com/x](https://deno.com/x).
 
 While it is possible to import from a GitHub raw URL, we'll use the
-[jsDelivr][jsDelivr-gh] CDN which supports GitHub URLs.
+[jsDelivr](https://www.jsdelivr.com/?docs=gh) CDN which supports GitHub
+URLs.
 
 ##### `e0/main.js`
 
@@ -452,4 +453,83 @@ provide a way to do a diff of the patches, so it's easy to check that
 it's patched properly. To check that the import map is correct, users
 of the library can run the script and compare the output.
 
-[jsDelivr-gh]: https://www.jsdelivr.com/?docs=gh
+We'll be making API requests to GitHub's REST API with fetch, using
+an API key without any spacial permissions. The repos are public and
+GitHub's API allows some anonymous requests, but the rate limits are
+less with an API key.
+
+First, generate an API key and set it as an environment variable.
+We'll use the minimum permissions that are needed. When you generate
+the API key, don't select any permissions. The `public_repo`
+permission is for writing. It is not needed to read from a public
+repo. Follow the instructions here:
+
+[Creating a personal access token](https://docs.github.com/en/authentication/keeping-your-account-and-data-secure/creating-a-personal-access-token)
+
+Save that token somewhere. A password manager is a good place. When
+you run it, you can simply set it in your shell or put it at the
+start of a command. If you don't have it set, the program below will
+tell you.
+
+Let's get the contents of `package.json`, the current version from
+the `package.json`, the JavaScript filenames in `src` for the tag
+from the current version, and the contents of `src/index.js` so we
+can patch it. Later on we'll use the `package.json` to find
+dependencies. We'll start with a list I manually constructed of
+packages for `@codemirror/view` needed to make the basic editor.
+The GitHub repositories are by organization, and where there is no
+organization, it's specified with a list. This is similar to the
+babel plugin syntax.
+
+##### `e7/deps.json`
+
+```json
+[
+  ["style-mod", "marijnh/style-mod"],
+  "@codemirror/rangeset",
+  "@codemirror/state",
+  "@codemirror/text",
+  "@codemirror/state",
+  ["w3c-keyname", "marijnh/w3c-keyname"],
+]
+```
+
+There is one endpoint for getting the contents of either a file
+or a directory: [Repositories: Get repository content](https://docs.github.com/en/rest/reference/repos#get-repository-content).
+Once we have the version from the `package.json` we'll need to
+specify a tag. This is given in the `ref` parameter.
+
+##### `e7/build.js`
+
+```js
+import { decode } from "https://deno.land/std@0.118.0/encoding/base64.ts";
+
+const token = Deno.env.get('GITHUB_API_TOKEN');
+if (!(typeof token === 'string' && token.length > 10)) {
+  console.error('GITHUB_API_TOKEN environment variable is required')
+}
+
+const headers = {
+  Accept: "application/vnd.github.v3+json",
+  Authorization: `token ${token}`,
+}
+
+const apiBase = 'https://api.github.com';
+
+function repoPath({owner, repo, path}) {
+  const e = {
+    owner: encodeURIComponent(owner),
+    repo: encodeURIComponent(repo),
+    repo: encodeURI(path),
+  }
+  return `/repos/${owner}/${repo}/contents${path}`;
+}
+
+async function getPackageJson({owner, repo}) {
+  const url = `${apiBase}${repoPath({owner, repo, path: '/package.json'})}`;
+  const resp = await fetch(url);
+  const { content } = await resp.json();
+  const json = decode(new TextEncoder().encode(content));
+  return JSON.parse(json);
+}
+```
