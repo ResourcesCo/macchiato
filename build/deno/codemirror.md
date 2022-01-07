@@ -523,20 +523,26 @@ const headers = {
 
 const apiBase = 'https://api.github.com';
 
-function repoPath({owner, repo, path}) {
+function repoPath({owner, repo}) {
   const e = {
     owner: encodeURIComponent(owner),
     repo: encodeURIComponent(repo),
-    repo: encodeURI(path),
   }
-  return `/repos/${owner}/${repo}/contents${path}`;
+  return `/repos/${e.owner}/${e.repo}`;
 }
 
 async function getTextFile({owner, repo, path}) {
-  const url = `${apiBase}${repoPath({owner, repo, path})}`;
+  const url = `${apiBase}${repoPath({owner, repo})}/contents${encodeURI(path)}`;
   const resp = await fetch(url);
   const content = (await resp.json()).content;
   return new TextDecoder().decode(decode(content));
+}
+
+async function getTree({owner, repo, version}) {
+  const repoUrl = `${apiBase}${repoPath({owner, repo})}`;
+  const url = `${repoUrl}/git/trees/${encodeURIComponent(version)}`;
+  const resp = await fetch(url);
+  return (await resp.json()).tree.map(({path}) => path);
 }
 
 for (const dep of deps) {
@@ -545,6 +551,8 @@ for (const dep of deps) {
   const repo = parts[1];
   const pkg = JSON.parse(await getTextFile({owner, repo, path: "/package.json"}));
   console.log({owner, repo, version: pkg.version});
+  const files = await getTree({owner, repo, version: pkg.version});
+  console.log({files});
 }
 ```
 
