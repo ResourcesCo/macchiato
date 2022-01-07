@@ -509,6 +509,8 @@ the [Git database: Get a tree](https://docs.github.com/en/rest/reference/git#get
 ```js
 import { decode } from "https://deno.land/std@0.118.0/encoding/base64.ts";
 
+const deps = JSON.parse(await Deno.readTextFile("./deps.json"));
+
 const token = Deno.env.get('GITHUB_API_TOKEN');
 if (!(typeof token === 'string' && token.length > 10)) {
   console.error('GITHUB_API_TOKEN environment variable is required')
@@ -533,7 +535,21 @@ function repoPath({owner, repo, path}) {
 async function getTextFile({owner, repo, path}) {
   const url = `${apiBase}${repoPath({owner, repo, path})}`;
   const resp = await fetch(url);
-  const { content } = await resp.json();
-  return decode(new TextEncoder().encode(content));
+  const content = (await resp.json()).content;
+  return new TextDecoder().decode(decode(content));
 }
+
+for (const dep of deps) {
+  const parts = (Array.isArray(dep) ? dep[1] : dep).split("/");
+  const owner = parts[0].replace("@", "");
+  const repo = parts[1];
+  const pkg = JSON.parse(await getTextFile({owner, repo, path: "/package.json"}));
+  console.log({owner, repo, version: pkg.version});
+}
+```
+
+To run it:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN --allow-read=deps.json build.js
 ```
