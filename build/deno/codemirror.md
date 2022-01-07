@@ -490,14 +490,19 @@ babel plugin syntax.
   "@codemirror/state",
   "@codemirror/text",
   "@codemirror/state",
-  ["w3c-keyname", "marijnh/w3c-keyname"],
+  ["w3c-keyname", "marijnh/w3c-keyname"]
 ]
 ```
 
-There is one endpoint for getting the contents of either a file
-or a directory: [Repositories: Get repository content](https://docs.github.com/en/rest/reference/repos#get-repository-content).
-Once we have the version from the `package.json` we'll need to
-specify a tag. This is given in the `ref` parameter.
+We'll make a function to get the text of a file from a GitHub
+repository, which we'll use both to read the `package.json`
+and to download the `index.ts` for customization. This will
+use the [Repositories: Get repository content](https://docs.github.com/en/rest/reference/repos#get-repository-content)
+endpoint.
+
+We'll use that function to read `package.json` and with that we'll
+get a list of the files for that version. For this we'll use
+the [Git database: Get a tree](https://docs.github.com/en/rest/reference/git#get-a-tree) endpoint.
 
 ##### `e7/build.js`
 
@@ -525,11 +530,10 @@ function repoPath({owner, repo, path}) {
   return `/repos/${owner}/${repo}/contents${path}`;
 }
 
-async function getPackageJson({owner, repo}) {
-  const url = `${apiBase}${repoPath({owner, repo, path: '/package.json'})}`;
+async function getTextFile({owner, repo, path}) {
+  const url = `${apiBase}${repoPath({owner, repo, path})}`;
   const resp = await fetch(url);
   const { content } = await resp.json();
-  const json = decode(new TextEncoder().encode(content));
-  return JSON.parse(json);
+  return decode(new TextEncoder().encode(content));
 }
 ```
