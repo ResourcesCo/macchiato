@@ -541,7 +541,7 @@ async function getTextFile({owner, repo, path}) {
 async function getTree({owner, repo, version}) {
   const repoUrl = `${apiBase}${repoPath({owner, repo})}`;
   const url = `${repoUrl}/git/trees/${encodeURIComponent(version)}`;
-  const resp = await fetch(url);
+  const resp = await fetch(`${url}?recursive=true`);
   return (await resp.json()).tree.map(({path}) => path);
 }
 
@@ -551,8 +551,18 @@ for (const dep of deps) {
   const repo = parts[1];
   const pkg = JSON.parse(await getTextFile({owner, repo, path: "/package.json"}));
   console.log({owner, repo, version: pkg.version});
-  const files = await getTree({owner, repo, version: pkg.version});
-  console.log({files});
+  const entry = pkg.module || pkg.main;
+  const files = (await getTree({owner, repo, version: pkg.version})).filter(f =>
+    ((f.endsWith('.ts') || f.endsWith('.js')) && !f.startsWith('test/'))
+  );
+  const mapEntries = files.filter(f => f !== entry).map(f => ([
+    `./patch/${owner}/${repo}@${pkg.version}/${f.replace(/\.[jt]s$/, '')}`,
+    `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${f}`,
+  ]));
+  console.log({
+    [pkg.name]: `./patch/${owner}/${repo}@${pkg.version}/${entry}`,
+    ...Object.fromEntries(mapEntries),
+  });
 }
 ```
 
