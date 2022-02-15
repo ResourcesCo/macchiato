@@ -1,0 +1,1 @@
+permissions/deno/worker_minimal.md
