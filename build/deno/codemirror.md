@@ -508,6 +508,8 @@ the [Git database: Get a tree](https://docs.github.com/en/rest/reference/git#get
 
 ```js
 import { decode } from "https://deno.land/std@0.118.0/encoding/base64.ts";
+import { dirname } from "https://deno.land/std@0.125.0/path/mod.ts";
+import { ensureDir } from "https://deno.land/std@0.125.0/fs/mod.ts";
 
 const deps = JSON.parse(await Deno.readTextFile("./deps.json"));
 
@@ -532,26 +534,32 @@ function repoPath({owner, repo}) {
 }
 
 async function getTextFile({owner, repo, path}) {
-  const url = `${apiBase}${repoPath({owner, repo})}/contents${encodeURI(path)}`;
-  const resp = await fetch(url);
-  const content = (await resp.json()).content;
-  return new TextDecoder().decode(decode(content));
+  const url = new URL(path, `${apiBase}${repoPath({owner, repo})}/contents/`).toString();
+  const resp = await fetch(url, {headers});
+  const json = await resp.json();
+  if (resp.ok) {
+    return new TextDecoder().decode(decode(json.content));
+  } else {
+    throw new Error(`Error loading ${path} at ${url}: ${JSON.stringify(json)}`);
+  }
 }
 
 async function getTree({owner, repo, version}) {
   const repoUrl = `${apiBase}${repoPath({owner, repo})}`;
   const url = `${repoUrl}/git/trees/${encodeURIComponent(version)}`;
-  const resp = await fetch(`${url}?recursive=true`);
+  const resp = await fetch(`${url}?recursive=true`, {headers});
   return (await resp.json()).tree.map(({path}) => path);
 }
 
+let outputMap = {};
 for (const dep of deps) {
   const parts = (Array.isArray(dep) ? dep[1] : dep).split("/");
   const owner = parts[0].replace("@", "");
   const repo = parts[1];
-  const pkg = JSON.parse(await getTextFile({owner, repo, path: "/package.json"}));
-  console.log({owner, repo, version: pkg.version});
-  const entry = pkg.module || pkg.main;
+  const pkg = JSON.parse(await getTextFile({owner, repo, path: "package.json"}));
+  const entry = ((pkg.scripts?.prepare || '').startsWith('cm-buildhelper ') ?
+                 (pkg.scripts?.prepare || '').replace('cm-buildhelper ', '') :
+                 pkg.module || pkg.main);
   const files = (await getTree({owner, repo, version: pkg.version})).filter(f =>
     ((f.endsWith('.ts') || f.endsWith('.js')) && !f.startsWith('test/'))
   );
@@ -559,15 +567,31 @@ for (const dep of deps) {
     `./patch/${owner}/${repo}@${pkg.version}/${f.replace(/\.[jt]s$/, '')}`,
     `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${f}`,
   ]));
-  console.log({
-    [pkg.name]: `./patch/${owner}/${repo}@${pkg.version}/${entry}`,
+  const entryUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${entry}`;
+  const entryPatch = `./patch/${owner}/${repo}@${pkg.version}/${entry}`;
+  const entryResp = await fetch(entryUrl);
+  const entryText = await entryResp.text();
+  if (entryResp.ok) {
+    await ensureDir(dirname(entryPatch));
+    await Deno.writeTextFile(entryPatch, entryText);
+  } else {
+    throw new Error(`Error getting source for ${entry} at ${entryUrl}: ${entryResp.statusCode} ${entryText}`);
+  }
+  outputMap = {
+    ...outputMap,
+    [pkg.name]: entryPatch,
     ...Object.fromEntries(mapEntries),
-  });
+  };
 }
+Deno.writeTextFile('./import-map.json', JSON.stringify(outputMap, null, 2));
 ```
 
 To run it:
 
 ```bash
-deno run --allow-env=GITHUB_API_TOKEN --allow-read=deps.json build.js
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps.json,patch \
+--allow-write=import-map.json,patch \
+build.js
 ```
