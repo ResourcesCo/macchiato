@@ -568,22 +568,31 @@ for (const dep of deps) {
     `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${f}`,
   ]));
   const entryUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${entry}`;
-  const entryPatch = `./patch/${owner}/${repo}@${pkg.version}/${entry}`;
-  const entryResp = await fetch(entryUrl);
-  const entryText = await entryResp.text();
-  if (entryResp.ok) {
-    await ensureDir(dirname(entryPatch));
-    await Deno.writeTextFile(entryPatch, entryText);
-  } else {
-    throw new Error(`Error getting source for ${entry} at ${entryUrl}: ${entryResp.statusCode} ${entryText}`);
+  const entryPatch = (
+    entry.endsWith('.js') ? undefined :
+    `./patch/${owner}/${repo}@${pkg.version}/${entry}`
+  );
+  if (entryPatch !== undefined) {
+    const entryResp = await fetch(entryUrl);
+    const entryText = await entryResp.text();
+    if (entryResp.ok) {
+      await ensureDir(dirname(entryPatch));
+      await Deno.writeTextFile(entryPatch, entryText);
+    } else {
+      throw new Error(`Error getting source for ${entry} at ${entryUrl}: ${entryResp.statusCode} ${entryText}`);
+    }
   }
+  console.log(pkg.name);
   outputMap = {
     ...outputMap,
-    [pkg.name]: entryPatch,
+    [pkg.name]: entryPatch === undefined ? entryUrl : entryPatch,
     ...Object.fromEntries(mapEntries),
   };
 }
-Deno.writeTextFile('./import-map.json', JSON.stringify(outputMap, null, 2));
+const importMapData = {
+  imports: outputMap,
+};
+Deno.writeTextFile('./import-map.json', JSON.stringify(importMapData, null, 2));
 ```
 
 To run it:
@@ -594,4 +603,18 @@ deno run --allow-env=GITHUB_API_TOKEN \
 --allow-read=deps.json,patch \
 --allow-write=import-map.json,patch \
 build.js
+```
+
+Starting by importing a leaf dependency:
+
+##### `e7/example1.ts`
+
+```ts
+import { StyleModule } from 'style-mod';
+console.log({StyleModule});
+```
+
+To run it:
+
+```ts
 ```
