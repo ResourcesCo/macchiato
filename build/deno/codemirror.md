@@ -484,14 +484,68 @@ babel plugin syntax.
 ##### `e7/deps.json`
 
 ```json
-[
-  ["style-mod", "marijnh/style-mod"],
-  "@codemirror/rangeset",
-  "@codemirror/state",
-  "@codemirror/text",
-  "@codemirror/state",
-  ["w3c-keyname", "marijnh/w3c-keyname"]
-]
+{
+  "deps": [
+    ["style-mod", "marijnh/style-mod"],
+    "@codemirror/rangeset",
+    "@codemirror/state",
+    "@codemirror/text",
+    "@codemirror/state",
+    ["w3c-keyname", "marijnh/w3c-keyname"]
+  ],
+  "patches": {
+    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.9/src/index.ts": [
+      [
+        "export {Line, TextIterator, Text} from \"./text\"",
+        [
+          "export {Line, Text} from \"./text\"",
+          "export type {TextIterator} from \"./text\""
+        ]
+      ],
+      [
+        "export {EditorStateConfig, EditorState} from \"./state\"",
+        [
+          "export {EditorState} from \"./state\"",
+          "export type {EditorStateConfig} from \"./state\""
+        ]
+      ],
+      [
+        "export {StateCommand} from \"./extension\"",
+        "export type {StateCommand} from \"./extension\""
+      ],
+      [
+        "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+        [
+          "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+          "export type {Extension} from \"./facet\""
+        ]
+      ],
+      [
+        "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+        [
+          "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+          "export type {TransactionSpec} from \"./transaction\""
+        ]
+      ],
+      [
+        "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+        [
+          "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+          "export type {ChangeSpec} from \"./change\""
+        ]
+      ]
+    ],
+    "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.6/src/index.ts": [
+      [
+        "export {Line, TextIterator, Text} from \"./text\"",
+        [
+          "export {Line, Text} from \"./text\"",
+          "export type {TextIterator} from \"./text\""
+        ]
+      ]
+    ]
+  }
+}
 ```
 
 We'll make a function to get the text of a file from a GitHub
@@ -551,8 +605,21 @@ async function getTree({owner, repo, version}) {
   return (await resp.json()).tree.map(({path}) => path);
 }
 
+function patchEntry(url, text) {
+  let result = text;
+  const patches = deps['patches'][url];
+  if (patches) {
+    for (const replacement of patches) {
+      const search = replacement[0] + "\n";
+      const replace = (Array.isArray(replacement[1]) ? replacement[1].join("\n") : replacement[1]) + "\n";
+      result = result.replace(search, replace);
+    }
+  }
+  return result;
+}
+
 let outputMap = {};
-for (const dep of deps) {
+for (const dep of deps.deps) {
   const parts = (Array.isArray(dep) ? dep[1] : dep).split("/");
   const owner = parts[0].replace("@", "");
   const repo = parts[1];
@@ -563,8 +630,12 @@ for (const dep of deps) {
   const files = (await getTree({owner, repo, version: pkg.version})).filter(f =>
     ((f.endsWith('.ts') || f.endsWith('.js')) && !f.startsWith('test/'))
   );
-  const mapEntries = files.filter(f => f !== entry).map(f => ([
+  const patchMapEntries = files.filter(f => f !== entry).map(f => ([
     `./patch/${owner}/${repo}@${pkg.version}/${f.replace(/\.[jt]s$/, '')}`,
+    `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${f}`,
+  ]));
+  const relativeMapEntries = files.filter(f => f !== entry).map(f => ([
+    `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${f.replace(/\.[jt]s$/, '')}`,
     `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${f}`,
   ]));
   const entryUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${entry}`;
@@ -575,9 +646,10 @@ for (const dep of deps) {
   if (entryPatch !== undefined) {
     const entryResp = await fetch(entryUrl);
     const entryText = await entryResp.text();
+    const patchedEntry = patchEntry(entryUrl, entryText);
     if (entryResp.ok) {
       await ensureDir(dirname(entryPatch));
-      await Deno.writeTextFile(entryPatch, entryText);
+      await Deno.writeTextFile(entryPatch, patchedEntry);
     } else {
       throw new Error(`Error getting source for ${entry} at ${entryUrl}: ${entryResp.statusCode} ${entryText}`);
     }
@@ -586,7 +658,8 @@ for (const dep of deps) {
   outputMap = {
     ...outputMap,
     [pkg.name]: entryPatch === undefined ? entryUrl : entryPatch,
-    ...Object.fromEntries(mapEntries),
+    ...Object.fromEntries(patchMapEntries),
+    ...Object.fromEntries(relativeMapEntries),
   };
 }
 const importMapData = {
@@ -611,7 +684,8 @@ Starting by importing a leaf dependency:
 
 ```ts
 import { StyleModule } from 'style-mod';
-console.log({StyleModule});
+import { Range } from '@codemirror/rangeset';
+console.log({StyleModule, Range});
 ```
 
 To run it:
