@@ -481,82 +481,106 @@ The GitHub repositories are by organization, and where there is no
 organization, it's specified with a list. This is similar to the
 babel plugin syntax.
 
+This will also contain some changes that need to be made for the
+patch files, that were manually constructed above. The patches will
+just be a search and replace of entire lines. Lines can be in a
+list to make the JSON easier to read.
+
 ##### `e7/deps.json`
 
 ```json
 {
   "deps": [
-    ["style-mod", "marijnh/style-mod"],
-    "@codemirror/rangeset",
-    "@codemirror/state",
-    "@codemirror/text",
-    "@codemirror/state",
-    ["w3c-keyname", "marijnh/w3c-keyname"]
-  ],
-  "patches": {
-    "https://cdn.jsdelivr.net/gh/codemirror/state@0.19.9/src/index.ts": [
-      [
-        "export {Line, TextIterator, Text} from \"./text\"",
-        [
-          "export {Line, Text} from \"./text\"",
-          "export type {TextIterator} from \"./text\""
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
         ]
-      ],
-      [
-        "export {EditorStateConfig, EditorState} from \"./state\"",
-        [
-          "export {EditorState} from \"./state\"",
-          "export type {EditorStateConfig} from \"./state\""
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
         ]
-      ],
-      [
-        "export {StateCommand} from \"./extension\"",
-        "export type {StateCommand} from \"./extension\""
-      ],
-      [
-        "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
-        [
-          "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
-          "export type {Extension} from \"./facet\""
-        ]
-      ],
-      [
-        "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
-        [
-          "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
-          "export type {TransactionSpec} from \"./transaction\""
-        ]
-      ],
-      [
-        "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
-        [
-          "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
-          "export type {ChangeSpec} from \"./change\""
-        ]
-      ]
-    ],
-    "https://cdn.jsdelivr.net/gh/codemirror/text@0.19.6/src/index.ts": [
-      [
-        "export {Line, TextIterator, Text} from \"./text\"",
-        [
-          "export {Line, Text} from \"./text\"",
-          "export type {TextIterator} from \"./text\""
-        ]
-      ]
-    ]
-  }
+      }
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
 }
 ```
 
 We'll make a function to get the text of a file from a GitHub
 repository, which we'll use both to read the `package.json`
-and to download the `index.ts` for customization. This will
+and to download the `index.ts` for patching. This will
 use the [Repositories: Get repository content](https://docs.github.com/en/rest/reference/repos#get-repository-content)
 endpoint.
 
 We'll use that function to read `package.json` and with that we'll
 get a list of the files for that version. For this we'll use
 the [Git database: Get a tree](https://docs.github.com/en/rest/reference/git#get-a-tree) endpoint.
+
+The typescript entry points will be patched by searching and
+replacing as specified in `patches` of `deps.json`.
 
 ##### `e7/build.js`
 
@@ -565,7 +589,11 @@ import { decode } from "https://deno.land/std@0.118.0/encoding/base64.ts";
 import { dirname } from "https://deno.land/std@0.125.0/path/mod.ts";
 import { ensureDir } from "https://deno.land/std@0.125.0/fs/mod.ts";
 
-const deps = JSON.parse(await Deno.readTextFile("./deps.json"));
+if (Deno.args.length !== 1) {
+  throw new Error("Missing argument: path to dependency json file");
+}
+
+const deps = JSON.parse(await Deno.readTextFile(Deno.args[0]));
 
 const token = Deno.env.get('GITHUB_API_TOKEN');
 if (!(typeof token === 'string' && token.length > 10)) {
@@ -579,16 +607,8 @@ const headers = {
 
 const apiBase = 'https://api.github.com';
 
-function repoPath({owner, repo}) {
-  const e = {
-    owner: encodeURIComponent(owner),
-    repo: encodeURIComponent(repo),
-  }
-  return `/repos/${e.owner}/${e.repo}`;
-}
-
-async function getTextFile({owner, repo, path}) {
-  const url = new URL(path, `${apiBase}${repoPath({owner, repo})}/contents/`).toString();
+async function getTextFile({github, path}) {
+  const url = new URL(path, `${apiBase}/repos/${github}/contents/`).toString();
   const resp = await fetch(url, {headers});
   const json = await resp.json();
   if (resp.ok) {
@@ -598,69 +618,81 @@ async function getTextFile({owner, repo, path}) {
   }
 }
 
-async function getTree({owner, repo, version}) {
-  const repoUrl = `${apiBase}${repoPath({owner, repo})}`;
+async function getTree({github, version}) {
+  const repoUrl = `${apiBase}/repos/${github}`;
   const url = `${repoUrl}/git/trees/${encodeURIComponent(version)}`;
   const resp = await fetch(`${url}?recursive=true`, {headers});
   return (await resp.json()).tree.map(({path}) => path);
 }
 
-function patchEntry(url, text) {
+function linesToStr(input) {
+  const arr = Array.isArray(input) ? input : [input];
+  return arr.map(s => s + "\n").join("");
+}
+
+function patchText(text, patches) {
   let result = text;
-  const patches = deps['patches'][url];
   if (patches) {
-    for (const replacement of patches) {
-      const search = replacement[0] + "\n";
-      const replace = (Array.isArray(replacement[1]) ? replacement[1].join("\n") : replacement[1]) + "\n";
-      result = result.replace(search, replace);
+    for (const [search, replace] of patches) {
+      result = result.replace(linesToStr(search), linesToStr(replace));
     }
   }
   return result;
 }
 
-let outputMap = {};
-for (const dep of deps.deps) {
-  const parts = (Array.isArray(dep) ? dep[1] : dep).split("/");
-  const owner = parts[0].replace("@", "");
-  const repo = parts[1];
-  const pkg = JSON.parse(await getTextFile({owner, repo, path: "package.json"}));
+function buildUrl({patch, github, version, file, ext}) {
+  const base = patch ? './patch' : 'https://cdn.jsdelivr.net/gh';
+  const f = ext ? file : file.replace(/\.[jt]s$/, '');
+  return `${base}/${github}@${version}/${f}`
+}
+
+async function buildPackage({npm, github, patch}) {
+  const [owner, repo] = github.split('/');
+  const pkg = JSON.parse(await getTextFile({github, path: "package.json"}));
   const entry = ((pkg.scripts?.prepare || '').startsWith('cm-buildhelper ') ?
                  (pkg.scripts?.prepare || '').replace('cm-buildhelper ', '') :
                  pkg.module || pkg.main);
-  const files = (await getTree({owner, repo, version: pkg.version})).filter(f =>
+  const files = (await getTree({github, version: pkg.version})).filter(f =>
     ((f.endsWith('.ts') || f.endsWith('.js')) && !f.startsWith('test/'))
   );
-  const patchMapEntries = files.filter(f => f !== entry).map(f => ([
-    `./patch/${owner}/${repo}@${pkg.version}/${f.replace(/\.[jt]s$/, '')}`,
-    `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${f}`,
+  const urlParams = {github, version: pkg.version};
+  const patchMap = patch || {};
+  const patchedFiles = Object.keys(patchMap);
+  const relativeMapEntries = files.map(f => ([
+    buildUrl({...urlParams, file: f, patch: false, ext: false}),
+    buildUrl({...urlParams, file: f, patch: f in patchMap, ext: true}),
   ]));
-  const relativeMapEntries = files.filter(f => f !== entry).map(f => ([
-    `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${f.replace(/\.[jt]s$/, '')}`,
-    `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${f}`,
-  ]));
-  const entryUrl = `https://cdn.jsdelivr.net/gh/${owner}/${repo}@${pkg.version}/${entry}`;
-  const entryPatch = (
-    entry.endsWith('.js') ? undefined :
-    `./patch/${owner}/${repo}@${pkg.version}/${entry}`
-  );
-  if (entryPatch !== undefined) {
-    const entryResp = await fetch(entryUrl);
-    const entryText = await entryResp.text();
-    const patchedEntry = patchEntry(entryUrl, entryText);
-    if (entryResp.ok) {
-      await ensureDir(dirname(entryPatch));
-      await Deno.writeTextFile(entryPatch, patchedEntry);
+  let patchMapEntries = [];
+  if (patchedFiles.length > 0) {
+    patchMapEntries = files.map(f => ([
+      buildUrl({...urlParams, file: f, patch: true, ext: false}),
+      buildUrl({...urlParams, file: f, patch: f in patchMap, ext: true}),
+    ]));
+  }
+  for (const [f, patches] of Object.entries(patchMap)) {
+    const origUrl = buildUrl({...urlParams, file: f, patch: false, ext: true});
+    const patchFile = buildUrl({...urlParams, file: f, patch: true, ext: true});
+    const origResp = await fetch(origUrl);
+    const origText = await origResp.text();
+    if (origResp.ok) {
+      const patchedText = patchText(origText, patches);
+      await ensureDir(dirname(patchFile));
+      await Deno.writeTextFile(patchFile, patchedText);
     } else {
-      throw new Error(`Error getting source for ${entry} at ${entryUrl}: ${entryResp.statusCode} ${entryText}`);
+      throw new Error(`Error getting source at ${origUrl}: ${origResp.statusCode} ${origText}`);
     }
   }
-  console.log(pkg.name);
-  outputMap = {
-    ...outputMap,
-    [pkg.name]: entryPatch === undefined ? entryUrl : entryPatch,
-    ...Object.fromEntries(patchMapEntries),
+  return {
     ...Object.fromEntries(relativeMapEntries),
+    ...Object.fromEntries(patchMapEntries),
+    [npm]: buildUrl({...urlParams, file: entry, patch: entry in patchMap, ext: true}),
   };
+}
+
+let outputMap = {};
+for (const dep of deps.deps) {
+  const packageMap = await buildPackage(dep);
+  outputMap = { ...outputMap, ...packageMap };
 }
 const importMapData = {
   imports: outputMap,
@@ -675,10 +707,11 @@ deno run --allow-env=GITHUB_API_TOKEN \
 --allow-net=api.github.com,cdn.jsdelivr.net \
 --allow-read=deps.json,patch \
 --allow-write=import-map.json,patch \
-build.js
+build.js \
+deps.json
 ```
 
-Starting by importing a leaf dependency:
+Starting by importing some dependencies:
 
 ##### `e7/example1.ts`
 
@@ -690,5 +723,43 @@ console.log({StyleModule, Range});
 
 To run it:
 
+```bash
+deno run --import-map=import-map.json example1.ts
+```
+
+Now we'll get the view bundling. This is based on the "minimum viable editor"
+in the [System Guide](https://codemirror.net/6/docs/guide/).
+
+##### `e7/example2.ts`
+
 ```ts
+import {EditorState} from "@codemirror/state"
+import {EditorView, keymap} from "@codemirror/view"
+import {defaultKeymap} from "@codemirror/commands"
+
+let startState = EditorState.create({
+  doc: "Hello World",
+  extensions: [keymap.of(defaultKeymap)]
+})
+
+let view = new EditorView({
+  state: startState,
+  parent: document.body
+})
+```
+
+We'll attempt to bundle it:
+
+```bash
+❯ deno bundle --import-map=import-map.json example2.ts
+error: Relative import path "@codemirror/commands" not prefixed with / or ./ or ../ and not in import map from "file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/example2.ts"
+    at file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/example2.ts:3:29
+```
+
+There's another module that needs to be added to `deps.json`.
+
+##### `e7/deps2.json`
+
+```
+
 ```
