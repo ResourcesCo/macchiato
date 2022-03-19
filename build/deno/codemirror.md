@@ -646,10 +646,10 @@ function buildUrl({patch, github, version, file, ext}) {
   return `${base}/${github}@${version}/${f}`
 }
 
-async function buildPackage({npm, github, patch}) {
+async function buildPackage({npm, github, patch, entry: configEntry}) {
   const [owner, repo] = github.split('/');
   const pkg = JSON.parse(await getTextFile({github, path: "package.json"}));
-  const entry = ((pkg.scripts?.prepare || '').startsWith('cm-buildhelper ') ?
+  const entry = configEntry || ((pkg.scripts?.prepare || '').startsWith('cm-buildhelper ') ?
                  (pkg.scripts?.prepare || '').replace('cm-buildhelper ', '') :
                  pkg.module || pkg.main);
   const files = (await getTree({github, version: pkg.version})).filter(f =>
@@ -760,6 +760,1153 @@ There's another module that needs to be added to `deps.json`.
 
 ##### `e7/deps2.json`
 
+```json
+{
+  "deps": [
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/commands",
+      "github": "codemirror/commands",
+      "patch": {}
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
+}
 ```
 
+We'll build with this new deps json file:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps2.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps2.json
 ```
+
+Trying to bundle it again:
+
+```
+❯ deno bundle --import-map=import-map.json example2.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/commands@0.19.8/src/commands.ts
+error: Relative import path "@codemirror/language" not prefixed with / or ./ or ../ and not in import map from "https://cdn.jsdelivr.net/gh/codemirror/commands@0.19.8/src/commands.ts"
+    at https://cdn.jsdelivr.net/gh/codemirror/commands@0.19.8/src/commands.ts:7:30
+```
+
+There's another dependency, `@codemirror/language, that needs to be added.
+New `deps3.json`:
+
+##### `e7/deps3.json`
+
+```json
+{
+  "deps": [
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/commands",
+      "github": "codemirror/commands",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/language",
+      "github": "codemirror/language",
+      "patch": {}
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
+}
+```
+
+We'll build with this new deps json file:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps3.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps3.json
+```
+
+Trying to bundle it with this dependency added:
+
+```
+❯ deno bundle --import-map=import-map.json example2.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/commands@0.19.8/src/commands.ts
+error: Relative import path "@codemirror/language" not prefixed with / or ./ or ../ and not in import map from "https://cdn.jsdelivr.net/gh/codemirror/commands@0.19.8/src/commands.ts"
+    at https://cdn.jsdelivr.net/gh/codemirror/commands@0.19.8/src/commands.ts:7:30
+```
+
+Now there is `@lezer/common`. New json file `deps4.json`:
+
+##### `e7/deps4.json`
+
+```json
+{
+  "deps": [
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/commands",
+      "github": "codemirror/commands",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/language",
+      "github": "codemirror/language",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/common",
+      "github": "lezer-parser/common",
+      "patch": {}
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
+}
+```
+
+We'll build with `deps4.json` file:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps4.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps4.json
+```
+
+Trying to bundle it with `@lezer/common` added:
+
+```
+❯ deno bundle --import-map=import-map.json example2.ts
+Download https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/dist/index.js
+error: Relative import path "@codemirror/view" not prefixed with / or ./ or ../ and not in import map from "https://cdn.jsdelivr.net/gh/codemirror/language@0.19.8/src/language.ts"
+    at https://cdn.jsdelivr.net/gh/codemirror/language@0.19.8/src/language.ts:6:64
+```
+
+This time it's `@codemirror/view`. Copying and adding to the json file:
+
+##### `e7/deps5.json`
+
+```json
+{
+  "deps": [
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/commands",
+      "github": "codemirror/commands",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/language",
+      "github": "codemirror/language",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/view",
+      "github": "codemirror/view",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/common",
+      "github": "lezer-parser/common",
+      "patch": {}
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
+}
+```
+
+We'll build with `deps5.json` file:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps5.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps5.json
+```
+
+Trying to bundle it with `@codemirror/view` added:
+
+```
+❯ deno bundle --import-map=import-map.json example2.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts
+Download https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/dist/index.js
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/active-line.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/bidi.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/decoration.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/dom.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/draw-selection.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/dropcursor.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/editorview.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/extension.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/heightmap.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/input.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/keymap.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/matchdecorator.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/placeholder.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/scrollpastend.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/special-chars.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/browser.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/attributes.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts
+Download https://cdn.jsdelivr.net/gh/marijnh/w3c-keyname@2.2.4/index.es.js
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/blockview.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/contentview.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/cursor.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/docview.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/domchange.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/domobserver.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/viewstate.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/buildview.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/domreader.ts
+error: Relative import path "@lezer/lr" not prefixed with / or ./ or ../ and not in import map from "https://cdn.jsdelivr.net/gh/codemirror/language@0.19.8/src/language.ts"
+    at https://cdn.jsdelivr.net/gh/codemirror/language@0.19.8/src/language.ts:3:43
+```
+
+This one downloaded quite a few files. `@lezer/lr` is needed. New `deps6.json` file:
+
+##### `e7/deps6.json`
+
+```json
+{
+  "deps": [
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/commands",
+      "github": "codemirror/commands",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/language",
+      "github": "codemirror/language",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/view",
+      "github": "codemirror/view",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/common",
+      "github": "lezer-parser/common",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/lr",
+      "github": "lezer-parser/lr",
+      "patch": {}
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
+}
+```
+
+We'll build with `deps6.json` file:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps6.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps6.json
+```
+
+Trying to bundle it with `@lezer/lr` added:
+
+```
+❯ deno bundle --import-map=import-map.json example2.ts
+Download https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/dist/index.js
+Download https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/dist/index.js
+error: Relative import path "@codemirror/matchbrackets" not prefixed with / or ./ or ../ and not in import map from "https://cdn.jsdelivr.net/gh/codemirror/commands@0.19.8/src/commands.ts"
+    at https://cdn.jsdelivr.net/gh/codemirror/commands@0.19.8/src/commands.ts:5:29
+```
+
+Now `@codemirror/matchbrackets` is needed. Adding:
+
+##### `e7/deps7.json`
+
+```json
+{
+  "deps": [
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/commands",
+      "github": "codemirror/commands",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/language",
+      "github": "codemirror/language",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/view",
+      "github": "codemirror/view",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/matchbrackets",
+      "github": "codemirror/matchbrackets",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/common",
+      "github": "lezer-parser/common",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/lr",
+      "github": "lezer-parser/lr",
+      "patch": {}
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
+}
+```
+
+We'll build with `deps7.json`:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps7.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps7.json
+```
+
+Trying to bundle it with `@lezer/lr` added:
+
+```
+❯ deno bundle --import-map=import-map.json example2.ts
+Download https://cdn.jsdelivr.net/gh/codemirror/matchbrackets@0.19.4/src/matchbrackets.ts
+Download https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/dist/index.js
+Download https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/dist/index.js
+error: Module not found "https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/dist/index.js".
+    at https://cdn.jsdelivr.net/gh/codemirror/language@0.19.8/src/language.ts:3:43
+```
+
+Here, `@lezer/lr` has its entry point wrong. To fix that, the entry point will be given
+as `src/index.ts`, and the same for `@lezer/common`:
+
+##### `e7/deps8.json`
+
+```json
+{
+  "deps": [
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/commands",
+      "github": "codemirror/commands",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/language",
+      "github": "codemirror/language",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/view",
+      "github": "codemirror/view",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/matchbrackets",
+      "github": "codemirror/matchbrackets",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/common",
+      "github": "lezer-parser/common",
+      "entry": "src/index.ts",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/lr",
+      "github": "lezer-parser/lr",
+      "entry": "src/index.ts",
+      "patch": {}
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
+}
+```
+
+We'll build with `deps8.json`:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps8.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps8.json
+```
+
+Trying to bundle it with fixed entrypoint for `@lezer/lr`:
+
+```
+❯ deno bundle --import-map=import-map.json example2.ts
+[lines omitted]
+TS2584 [ERROR]: Cannot find name 'document'. Do you need to change your target library? Try changing the 'lib' compiler option to include 'dom'.
+  parent: document.body
+          ~~~~~~~~
+    at file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/example2.ts:12:11
+
+Found 346 errors.
+```
+
+Finally it found the files, and there are TypeScript errors. Many of them are because
+it doesn't have DOM libraries. We'll fix that by adding a confiuration file!
+
+##### `e7/browser-bundle-config.json`
+
+```
+{
+  "compilerOptions": {
+    "target": "esnext",
+    "lib": ["dom", "dom.iterable", "dom.asynciterable", "deno.ns"]
+  }
+}
+```
+
+Running `deno bundle` with this configuration file:
+
+```
+❯ deno bundle --config=browser-bundle-config.json --import-map=import-map.json example2.ts
+Unsupported compiler options in "file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/browser-bundle-config.json".
+  The following options were ignored:
+    target
+Check file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/example2.ts
+error: TS2612 [ERROR]: Property 'point' will overwrite the base property in 'RangeValue'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  point!: boolean
+  ~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/decoration.ts:185:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: Text | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:12:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:67:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:154:3
+
+TS2612 [ERROR]: Property 'widget' will overwrite the base property in 'WidgetView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  widget!: CompositionWidget
+  ~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:238:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:315:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/blockview.ts:18:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/blockview.ts:155:3
+
+TS2612 [ERROR]: Property 'parent' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  parent!: DocView | null
+  ~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/blockview.ts:156:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/docview.ts:41:3
+
+TS2305 [ERROR]: Module '"https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.js"' has no exported member 'StyleSpec'.
+import {StyleModule, StyleSpec} from "style-mod"
+                     ~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:2:22
+
+TS7006 [ERROR]: Parameter 'sel' implicitly has an 'any' type.
+    finish(sel) {
+           ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:14:12
+
+TS7006 [ERROR]: Parameter 'm' implicitly has an 'any' type.
+      return /&/.test(sel) ? sel.replace(/&\w*/, m => {
+                                                 ^
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:15:50
+
+TS2305 [ERROR]: Module '"https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.js"' has no exported member 'StyleSpec'.
+import {StyleModule, StyleSpec} from "style-mod"
+                     ~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/editorview.ts:4:22
+
+TS7053 [ERROR]: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
+  No index signature with a parameter of type 'number' was found on type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
+      (baseName = base[event.keyCode]) && baseName != name) {
+                  ~~~~~~~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/keymap.ts:208:19
+
+TS7022 [ERROR]: 'parent' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:797:7
+
+TS7023 [ERROR]: 'parent' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:797:7
+
+TS7022 [ERROR]: 'nextSibling' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get nextSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:801:7
+
+TS7023 [ERROR]: 'nextSibling' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get nextSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:801:7
+
+TS7022 [ERROR]: 'prevSibling' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get prevSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:804:7
+
+TS7023 [ERROR]: 'prevSibling' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get prevSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:804:7
+
+TS7022 [ERROR]: 'parent' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:889:7
+
+TS7023 [ERROR]: 'parent' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:889:7
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {DefaultBufferLength, NodeProp, MountedTree, NodePropSource, NodeType, NodeSet, Tree,
+                                                    ~~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/index.ts:1:53
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+        TreeBuffer, SyntaxNode, TreeCursor, BufferCursor} from "./tree"
+                    ~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/index.ts:2:21
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+        TreeBuffer, SyntaxNode, TreeCursor, BufferCursor} from "./tree"
+                                            ~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/index.ts:2:45
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {ChangedRange, TreeFragment, PartialParse, Parser, Input, ParseWrapper} from "./parse"
+        ~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/index.ts:3:9
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {ChangedRange, TreeFragment, PartialParse, Parser, Input, ParseWrapper} from "./parse"
+                                    ~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/index.ts:3:37
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {ChangedRange, TreeFragment, PartialParse, Parser, Input, ParseWrapper} from "./parse"
+                                                          ~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/index.ts:3:59
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {ChangedRange, TreeFragment, PartialParse, Parser, Input, ParseWrapper} from "./parse"
+                                                                 ~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/index.ts:3:66
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {NestedParse, parseMixed} from "./mix"
+        ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/index.ts:4:9
+
+TS2580 [ERROR]: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+const verbose = typeof process != "undefined" && /\bparse\b/.test(process.env.LOG!)
+                       ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/parse.ts:12:24
+
+TS2580 [ERROR]: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+const verbose = typeof process != "undefined" && /\bparse\b/.test(process.env.LOG!)
+                                                                  ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/parse.ts:12:67
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {LRParser, ParserConfig, ContextTracker} from "./parse"
+                  ~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/index.ts:1:19
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {EditorView, DOMEventMap, DOMEventHandlers} from "./editorview"
+                    ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:1:21
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {EditorView, DOMEventMap, DOMEventHandlers} from "./editorview"
+                                 ~~~~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:1:34
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from "./extension"
+        ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:2:9
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from "./extension"
+                             ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:2:30
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from "./extension"
+                                          ~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:2:43
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Decoration, DecorationSet, WidgetType, BlockType} from "./decoration"
+                    ~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:3:21
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {MouseSelectionStyle} from "./input"
+        ~~~~~~~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:5:9
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {KeyBinding, keymap, runScopeHandlers} from "./keymap"
+        ~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:7:9
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Rect} from "./dom"
+        ~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:14:9
+
+Found 43 errors.
+```
+
+There are 43 errors. Some are re-exported types, but there are a few others as well. Let's
+patch them up.
