@@ -1684,7 +1684,14 @@ it doesn't have DOM libraries. We'll fix that by adding a confiuration file!
 Running `deno bundle` with this configuration file:
 
 ```
-❯ deno bundle --config=browser-bundle-config.json --import-map=import-map.json example2.ts
+deno bundle --config=browser-bundle-config.json --import-map=import-map.json example2.ts > output.txt 2>&1
+```
+
+Here is the output:
+
+##### `e7/output.txt`
+
+```
 Unsupported compiler options in "file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/browser-bundle-config.json".
   The following options were ignored:
     target
@@ -1764,6 +1771,51 @@ TS7053 [ERROR]: Element implicitly has an 'any' type because expression of type 
       (baseName = base[event.keyCode]) && baseName != name) {
                   ~~~~~~~~~~~~~~~~~~~
     at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/keymap.ts:208:19
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {EditorView, DOMEventMap, DOMEventHandlers} from "./editorview"
+                    ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:1:21
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {EditorView, DOMEventMap, DOMEventHandlers} from "./editorview"
+                                 ~~~~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:1:34
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from "./extension"
+        ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:2:9
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from "./extension"
+                             ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:2:30
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from "./extension"
+                                          ~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:2:43
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Decoration, DecorationSet, WidgetType, BlockType} from "./decoration"
+                    ~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:3:21
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {MouseSelectionStyle} from "./input"
+        ~~~~~~~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:5:9
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {KeyBinding, keymap, runScopeHandlers} from "./keymap"
+        ~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:7:9
+
+TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
+export {Rect} from "./dom"
+        ~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:14:9
 
 TS7022 [ERROR]: 'parent' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
   get parent() {
@@ -1860,53 +1912,49 @@ export {LRParser, ParserConfig, ContextTracker} from "./parse"
                   ~~~~~~~~~~~~
     at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/index.ts:1:19
 
-TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
-export {EditorView, DOMEventMap, DOMEventHandlers} from "./editorview"
-                    ~~~~~~~~~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:1:21
-
-TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
-export {EditorView, DOMEventMap, DOMEventHandlers} from "./editorview"
-                                 ~~~~~~~~~~~~~~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:1:34
-
-TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
-export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from "./extension"
-        ~~~~~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:2:9
-
-TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
-export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from "./extension"
-                             ~~~~~~~~~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:2:30
-
-TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
-export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from "./extension"
-                                          ~~~~~~~~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:2:43
-
-TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
-export {Decoration, DecorationSet, WidgetType, BlockType} from "./decoration"
-                    ~~~~~~~~~~~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:3:21
-
-TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
-export {MouseSelectionStyle} from "./input"
-        ~~~~~~~~~~~~~~~~~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:5:9
-
-TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
-export {KeyBinding, keymap, runScopeHandlers} from "./keymap"
-        ~~~~~~~~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:7:9
-
-TS1205 [ERROR]: Re-exporting a type when the '--isolatedModules' flag is provided requires using 'export type'.
-export {Rect} from "./dom"
-        ~~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/index.ts:14:9
-
 Found 43 errors.
 ```
 
-There are 43 errors. Some are re-exported types, but there are a few others as well. Let's
-patch them up.
+There are 43 errors. Some are re-exported types, but there are a few others
+as well. Let's patch them up. First we'll patch the re-exported types, by
+using regular expressions on the output:
+
+- Loop through each occurrence of the `Re-exporting a type error`
+- Get the next line, which is the code
+- Get the location of the underline on the line after that
+- Get the repo (`:owner/:repo`) and the filename
+- Group ones that match the same line
+- Get the exported modules and detect which are underlined
+- Generate a line for `export` with ones that aren't underlined
+- Generate a line for `export type` with ones that are underlined
+- Add a patch entry to the contents of `deps8.json` and write it to `deps9.json`
+
+##### `e7/add_patches_for_export.ts`
+
+```ts
+import deps from './deps8.json' assert { type: "json"};
+
+function* getErrors(denoOutput: string[]) {
+  let remaining = denoOutput;
+  while (true) {
+    const index = remaining.findIndex(line => line.startsWith('TS1205'));
+    if (index !== -1) {
+      yield remaining.slice(index, index + 4);
+      remaining = remaining.slice(index + 4);
+    } else {
+      return;
+    }
+  }
+}
+
+const denoOutput = (await Deno.readTextFile('./output.txt')).split("\n");
+for (const lines of getErrors(denoOutput)) {
+  console.log(JSON.stringify(lines, null, 2));
+}
+```
+
+Running this:
+
+```
+deno run --allow-read=output.txt add_patches_for_export.ts
+```
