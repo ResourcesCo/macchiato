@@ -1919,27 +1919,27 @@ There are 43 errors. Some are re-exported types, but there are a few others
 as well. Let's patch them up. First we'll patch the re-exported types, by
 using regular expressions on the output:
 
-- Loop through each occurrence of the `Re-exporting a type error`
-- Get the next line, which is the code
-- Get the location of the underline on the line after that
-- Get the repo (`:owner/:repo`) and the filename
+- Loop through each occurrence of the `Re-exporting a type error` (index)
+- Get the next line, which is the code (index + 1)
+- Get the location of the underline on the line after that (index + 2)
+- Get the repo (`:owner/:repo`) and the filename (index + 3)
 - Group ones that match the same line
 - Get the exported modules and detect which are underlined
 - Generate a line for `export` with ones that aren't underlined
 - Generate a line for `export type` with ones that are underlined
 - Add a patch entry to the contents of `deps8.json` and write it to `deps9.json`
 
-##### `e7/add_patches_for_export.ts`
+##### `e7/add_patches_for_export.js`
 
 ```ts
-import deps from './deps8.json' assert { type: "json"};
+import deps from './deps8.json' assert { type: "json" };
 
-function* getErrors(denoOutput: string[]) {
+function* getErrors(denoOutput) {
   let remaining = denoOutput;
   while (true) {
     const index = remaining.findIndex(line => line.startsWith('TS1205'));
     if (index !== -1) {
-      yield remaining.slice(index, index + 4);
+      yield remaining.slice(index + 1, index + 4);
       remaining = remaining.slice(index + 4);
     } else {
       return;
@@ -1947,14 +1947,50 @@ function* getErrors(denoOutput: string[]) {
   }
 }
 
+const fileRegex = /([^\//@]+\/[^\//@]+)@([^\//]+)\/([^:]+):([^:]+):/;
 const denoOutput = (await Deno.readTextFile('./output.txt')).split("\n");
-for (const lines of getErrors(denoOutput)) {
-  console.log(JSON.stringify(lines, null, 2));
+const lineErrors = {};
+for (const [codeLine, underline, fileLine] of getErrors(denoOutput)) {
+  const [github, version, path, lineStr] = fileRegex.exec(fileLine).slice(1);
+  const line = Number(lineStr) - 1;
+  lineErrors[github] = lineErrors[github] || {};
+  lineErrors[github][path] = lineErrors[github][path] || {types: new Map(), version};
+  const types = lineErrors[github][path].types;
+  types.set(line, types.get(line) || []);
+  const type = codeLine.slice(underline.indexOf('~')).split(/[,}]/, 1)[0].trim();
+  types.get(line).push(type);
+}
+for (const [github, repoErrors] of Object.entries(lineErrors)) {
+  for (const [path, {version, types}] of Object.entries(repoErrors)) {
+    const url = `https://cdn.jsdelivr.net/gh/${github}@${version}/${path}`;
+    const resp = await fetch(url);
+    const lines = (await resp.text()).split("\n");
+    const patches = new Map();
+    for (const line of types.keys()) {
+      const start = lines.slice(0, line + 1).findLastIndex(s => s.includes('{'));
+      const end = line + lines.slice(line).findIndex(s => s.includes('}'));
+      const patch = patches.get(start) || {types: [], before: lines.slice(start, end + 1)};
+      patch.types = [...patch.types, ...types.get(line)];
+      patches.set(start, patch);
+    }
+    for (const patch of patches.values()) {
+      const before = patch.before.join(" ");
+      const items = before.split("{")[1].split("}")[0].split(",").map(s => s.trim());
+      patch.values = items.filter(s => !patch.types.includes(s));
+      const pre = before.split("{")[0] + "{";
+      const post = "}" + before.split("}")[1];
+      patch.after = [
+        patch.values.length > 0 ? pre + patch.values.join(", ") + post : undefined,
+        patch.types.length > 0 ? pre.replace('export', 'export type') + patch.types.join(", ") + post : undefined,
+      ].filter(s => s !== undefined);
+    }
+    console.log(JSON.stringify([...patches.entries()].map(([line, v]) => ({line, ...v})), null, 2));
+  }
 }
 ```
 
 Running this:
 
 ```
-deno run --allow-read=output.txt add_patches_for_export.ts
+deno run --allow-read=output.txt --allow-net=cdn.jsdelivr.net add_patches_for_export.js
 ```
