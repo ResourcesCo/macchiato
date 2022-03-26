@@ -1675,7 +1675,6 @@ it doesn't have DOM libraries. We'll fix that by adding a confiuration file!
 ```
 {
   "compilerOptions": {
-    "target": "esnext",
     "lib": ["dom", "dom.iterable", "dom.asynciterable", "deno.ns"]
   }
 }
@@ -1684,7 +1683,7 @@ it doesn't have DOM libraries. We'll fix that by adding a confiuration file!
 Running `deno bundle` with this configuration file:
 
 ```
-deno bundle --config=browser-bundle-config.json --import-map=import-map.json example2.ts > output.txt 2>&1
+NO_COLOR=1 deno bundle --config=browser-bundle-config.json --import-map=import-map.json example2.ts > output.txt 2>&1
 ```
 
 Here is the output:
@@ -1984,13 +1983,168 @@ for (const [github, repoErrors] of Object.entries(lineErrors)) {
         patch.types.length > 0 ? pre.replace('export', 'export type') + patch.types.join(", ") + post : undefined,
       ].filter(s => s !== undefined);
     }
-    console.log(JSON.stringify([...patches.entries()].map(([line, v]) => ({line, ...v})), null, 2));
+    const dep = deps.deps.find(dep => dep.github === github);
+    dep.patch[path] = [
+      ...(dep.patch[path] || []),
+      ...[...patches.values()].map(value => [value.before, value.after])
+    ];
   }
 }
+await Deno.writeTextFile("./deps9.json", JSON.stringify(deps, null, 2));
 ```
 
 Running this:
 
 ```
-deno run --allow-read=output.txt --allow-net=cdn.jsdelivr.net add_patches_for_export.js
+deno run --allow-read=output.txt --allow-write=deps9.json --allow-net=cdn.jsdelivr.net add_patches_for_export.js
+```
+
+We'll build with `deps9.json`:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps9.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps9.json
+```
+
+We'll bundle it and inspect the errors again:
+
+```bash
+NO_COLOR=1 deno bundle --config=browser-bundle-config.json --import-map=import-map.json example2.ts > output2.txt 2>&1
+```
+
+##### `e7/output2.txt`
+
+```
+Check file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/example2.ts
+error: TS2612 [ERROR]: Property 'point' will overwrite the base property in 'RangeValue'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  point!: boolean
+  ~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/decoration.ts:185:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: Text | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:12:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:67:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:154:3
+
+TS2612 [ERROR]: Property 'widget' will overwrite the base property in 'WidgetView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  widget!: CompositionWidget
+  ~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:238:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/inlineview.ts:315:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/blockview.ts:18:3
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement | null
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/blockview.ts:155:3
+
+TS2612 [ERROR]: Property 'parent' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  parent!: DocView | null
+  ~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/blockview.ts:156:3
+
+TS2305 [ERROR]: Module '"https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.js"' has no exported member 'StyleSpec'.
+import {StyleModule, StyleSpec} from "style-mod"
+                     ~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:2:22
+
+TS7006 [ERROR]: Parameter 'sel' implicitly has an 'any' type.
+    finish(sel) {
+           ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:14:12
+
+TS7006 [ERROR]: Parameter 'm' implicitly has an 'any' type.
+      return /&/.test(sel) ? sel.replace(/&\w*/, m => {
+                                                 ^
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:15:50
+
+TS2305 [ERROR]: Module '"https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.js"' has no exported member 'StyleSpec'.
+import {StyleModule, StyleSpec} from "style-mod"
+                     ~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/editorview.ts:4:22
+
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/docview.ts:41:3
+
+TS7053 [ERROR]: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
+  No index signature with a parameter of type 'number' was found on type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
+      (baseName = base[event.keyCode]) && baseName != name) {
+                  ~~~~~~~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/keymap.ts:208:19
+
+TS7022 [ERROR]: 'parent' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:797:7
+
+TS7023 [ERROR]: 'parent' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:797:7
+
+TS7022 [ERROR]: 'nextSibling' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get nextSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:801:7
+
+TS7023 [ERROR]: 'nextSibling' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get nextSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:801:7
+
+TS7022 [ERROR]: 'prevSibling' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get prevSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:804:7
+
+TS7023 [ERROR]: 'prevSibling' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get prevSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:804:7
+
+TS7022 [ERROR]: 'parent' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:889:7
+
+TS7023 [ERROR]: 'parent' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:889:7
+
+TS2580 [ERROR]: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+const verbose = typeof process != "undefined" && /\bparse\b/.test(process.env.LOG!)
+                       ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/parse.ts:12:24
+
+TS2580 [ERROR]: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+const verbose = typeof process != "undefined" && /\bparse\b/.test(process.env.LOG!)
+                                                                  ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/parse.ts:12:67
+
+Found 25 errors.
 ```
