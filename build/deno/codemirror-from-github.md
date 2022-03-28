@@ -1,4 +1,15 @@
-# CodeMirror 6 Editor w/ Deno
+# Bundling CodeMirror 6 from GitHub with Deno
+
+This is an attempt to get CodeMirror building and running just from the
+source on GitHub, built with `deno bundle`. The first build got the
+`bundle` command to run, but the resulting code didn't work.
+
+After the first build, focus has shifted to getting it to build with
+unmodified source from npm, using import map, in a separate document:
+
+- [Bundling CodeMirror 6 from Node with Deno](./codemirror-)
+
+## Starting
 
 Here we'll build a CodeMirror 6 editor with Deno using a custom-built
 sourcemap, with raw TypeScript files from GitHub via jsdelivr.
