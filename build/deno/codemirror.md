@@ -1986,7 +1986,9 @@ for (const [github, repoErrors] of Object.entries(lineErrors)) {
     const dep = deps.deps.find(dep => dep.github === github);
     dep.patch[path] = [
       ...(dep.patch[path] || []),
-      ...[...patches.values()].map(value => [value.before, value.after])
+      ...[...patches.values()].map(value => [value.before, value.after].map(v => (
+        v.length === 1 ? v[0] : v
+      )))
     ];
   }
 }
@@ -1997,6 +1999,199 @@ Running this:
 
 ```
 deno run --allow-read=output.txt --allow-write=deps9.json --allow-net=cdn.jsdelivr.net add_patches_for_export.js
+```
+
+Here is `deps9.json`. It adds quite a few patches.
+
+##### `e7/deps9.json`
+
+```json
+{
+  "deps": [
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/commands",
+      "github": "codemirror/commands",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/language",
+      "github": "codemirror/language",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/view",
+      "github": "codemirror/view",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {EditorView, DOMEventMap, DOMEventHandlers} from \"./editorview\"",
+            [
+              "export {EditorView} from \"./editorview\"",
+              "export type {DOMEventMap, DOMEventHandlers} from \"./editorview\""
+            ]
+          ],
+          [
+            "export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from \"./extension\"",
+            [
+              "export {ViewPlugin, PluginFieldProvider, PluginField, ViewUpdate, logException} from \"./extension\"",
+              "export type {Command, PluginValue, PluginSpec} from \"./extension\""
+            ]
+          ],
+          [
+            "export {Decoration, DecorationSet, WidgetType, BlockType} from \"./decoration\"",
+            [
+              "export {Decoration, WidgetType, BlockType} from \"./decoration\"",
+              "export type {DecorationSet} from \"./decoration\""
+            ]
+          ],
+          [
+            "export {MouseSelectionStyle} from \"./input\"",
+            "export type {MouseSelectionStyle} from \"./input\""
+          ],
+          [
+            "export {KeyBinding, keymap, runScopeHandlers} from \"./keymap\"",
+            [
+              "export {keymap, runScopeHandlers} from \"./keymap\"",
+              "export type {KeyBinding} from \"./keymap\""
+            ]
+          ],
+          [
+            "export {Rect} from \"./dom\"",
+            "export type {Rect} from \"./dom\""
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/matchbrackets",
+      "github": "codemirror/matchbrackets",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/common",
+      "github": "lezer-parser/common",
+      "entry": "src/index.ts",
+      "patch": {
+        "src/index.ts": [
+          [
+            [
+              "export {DefaultBufferLength, NodeProp, MountedTree, NodePropSource, NodeType, NodeSet, Tree,",
+              "        TreeBuffer, SyntaxNode, TreeCursor, BufferCursor} from \"./tree\""
+            ],
+            [
+              "export {DefaultBufferLength, NodeProp, MountedTree, NodeType, NodeSet, Tree, TreeBuffer, TreeCursor} from \"./tree\"",
+              "export type {NodePropSource, SyntaxNode, BufferCursor} from \"./tree\""
+            ]
+          ],
+          [
+            "export {ChangedRange, TreeFragment, PartialParse, Parser, Input, ParseWrapper} from \"./parse\"",
+            [
+              "export {TreeFragment, Parser} from \"./parse\"",
+              "export type {ChangedRange, PartialParse, Input, ParseWrapper} from \"./parse\""
+            ]
+          ],
+          [
+            "export {NestedParse, parseMixed} from \"./mix\"",
+            [
+              "export {parseMixed} from \"./mix\"",
+              "export type {NestedParse} from \"./mix\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@lezer/lr",
+      "github": "lezer-parser/lr",
+      "entry": "src/index.ts",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {LRParser, ParserConfig, ContextTracker} from \"./parse\"",
+            [
+              "export {LRParser, ContextTracker} from \"./parse\"",
+              "export type {ParserConfig} from \"./parse\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
+}
 ```
 
 We'll build with `deps9.json`:
@@ -2065,6 +2260,11 @@ TS2612 [ERROR]: Property 'parent' will overwrite the base property in 'ContentVi
   ~~~~~~
     at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/blockview.ts:156:3
 
+TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  dom!: HTMLElement
+  ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/docview.ts:41:3
+
 TS2305 [ERROR]: Module '"https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.js"' has no exported member 'StyleSpec'.
 import {StyleModule, StyleSpec} from "style-mod"
                      ~~~~~~~~~
@@ -2084,11 +2284,6 @@ TS2305 [ERROR]: Module '"https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src
 import {StyleModule, StyleSpec} from "style-mod"
                      ~~~~~~~~~
     at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/editorview.ts:4:22
-
-TS2612 [ERROR]: Property 'dom' will overwrite the base property in 'ContentView'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
-  dom!: HTMLElement
-  ~~~
-    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/docview.ts:41:3
 
 TS7053 [ERROR]: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
   No index signature with a parameter of type 'number' was found on type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
@@ -2148,3 +2343,749 @@ const verbose = typeof process != "undefined" && /\bparse\b/.test(process.env.LO
 
 Found 25 errors.
 ```
+
+Down to 25 errors. We'll modify the script to fix them. Because it will still do
+what the previous script did, it will start with `deps8.json` and output `deps10.json`.
+Also, these will be provided on the command line instead.
+
+##### `e7/add_patches.js`
+
+```ts
+function* getErrors(denoOutput, prefix) {
+  let remaining = denoOutput;
+  while (true) {
+    const index = remaining.findIndex(line => line.startsWith(prefix));
+    const blankIndex = index + 1 + remaining.slice(index + 1).findIndex(line => line.trim() === '');
+    if (index !== -1) {
+      yield remaining.slice(index, blankIndex);
+      remaining = remaining.slice(blankIndex + 1);
+    } else {
+      return;
+    }
+  }
+}
+
+const sourceFiles = {};
+async function getSourceLines({github, version, path}) {
+  const url = `https://cdn.jsdelivr.net/gh/${github}@${version}/${path}`;
+  if (typeof sourceFiles[url] === 'string') {
+    return sourceFiles[url].split("\n");
+  }
+  const resp = await fetch(url);
+  const text = await resp.text();
+  sourceFiles[url] = text;
+  return text.split("\n");
+}
+
+const [inputFile, outputFile] = Deno.args;
+
+const deps = JSON.parse(await Deno.readTextFile(inputFile));
+
+const fileRegex = /([^\//@]+\/[^\//@]+)@([^\//]+)\/([^:]+):([^:]+):/;
+const denoOutput = (await Deno.readTextFile('./output.txt')).split("\n");
+const lineErrors = {};
+for (const lines of getErrors(denoOutput, 'TS1205 ')) {
+  const [codeLine, underline, fileLine] = lines.slice(1);
+  const [github, version, path, lineStr] = fileRegex.exec(fileLine).slice(1);
+  const line = Number(lineStr) - 1;
+  lineErrors[github] = lineErrors[github] || {};
+  lineErrors[github][path] = lineErrors[github][path] || {types: new Map(), version};
+  const types = lineErrors[github][path].types;
+  types.set(line, types.get(line) || []);
+  const type = codeLine.slice(underline.indexOf('~')).split(/[,}]/, 1)[0].trim();
+  types.get(line).push(type);
+}
+for (const [github, repoErrors] of Object.entries(lineErrors)) {
+  for (const [path, {version, types}] of Object.entries(repoErrors)) {
+    const lines = await getSourceLines({github, version, path});
+    const patches = new Map();
+    for (const line of types.keys()) {
+      const start = lines.slice(0, line + 1).findLastIndex(s => s.includes('{'));
+      const end = line + lines.slice(line).findIndex(s => s.includes('}'));
+      const patch = patches.get(start) || {types: [], before: lines.slice(start, end + 1)};
+      patch.types = [...patch.types, ...types.get(line)];
+      patches.set(start, patch);
+    }
+    for (const patch of patches.values()) {
+      const before = patch.before.join(" ");
+      const items = before.split("{")[1].split("}")[0].split(",").map(s => s.trim());
+      patch.values = items.filter(s => !patch.types.includes(s));
+      const pre = before.split("{")[0] + "{";
+      const post = "}" + before.split("}")[1];
+      patch.after = [
+        patch.values.length > 0 ? pre + patch.values.join(", ") + post : undefined,
+        patch.types.length > 0 ? pre.replace('export', 'export type') + patch.types.join(", ") + post : undefined,
+      ].filter(s => s !== undefined);
+    }
+    const dep = deps.deps.find(dep => dep.github === github);
+    dep.patch[path] = [
+      ...(dep.patch[path] || []),
+      ...[...patches.values()].map(value => [value.before, value.after].map(v => (
+        v.length === 1 ? v[0] : v
+      )))
+    ];
+  }
+}
+
+for (const errorLines of getErrors(denoOutput, 'TS2612 ')) {
+  const fileLine = errorLines[3];
+  const [github, version, path, lineStr] = fileRegex.exec(fileLine).slice(1);
+  const line = Number(lineStr) - 1;
+  const lines = await getSourceLines({github, version, path});
+  const before = lines[line];
+  const match = /^(\s*)(\S*)!:(.*)$/.exec(before);
+  if (!match) {
+    throw new Error(`Didn't match regex: ${before}`);
+  }
+  const after = match[1] + 'declare ' + match[2] + ':' + match[3];
+  const dep = deps.deps.find(dep => dep.github === github);
+  dep.patch[path] = [
+    ...(dep.patch[path] || []),
+    [before, after],
+  ];
+}
+
+await Deno.writeTextFile(outputFile, JSON.stringify(deps, null, 2));
+```
+
+Running it:
+
+```
+deno run --allow-read=output.txt,deps8.json --allow-write=deps10.json \
+--allow-net=cdn.jsdelivr.net \
+add_patches.js deps8.json deps10.json
+```
+
+Here is the updated file:
+
+##### `deps10.json`
+
+```json
+{
+  "deps": [
+    {
+      "npm": "style-mod",
+      "github": "marijnh/style-mod"
+    },
+    {
+      "npm": "@codemirror/rangeset",
+      "github": "codemirror/rangeset"
+    },
+    {
+      "npm": "@codemirror/state",
+      "github": "codemirror/state",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ],
+          [
+            "export {EditorStateConfig, EditorState} from \"./state\"",
+            [
+              "export {EditorState} from \"./state\"",
+              "export type {EditorStateConfig} from \"./state\""
+            ]
+          ],
+          [
+            "export {StateCommand} from \"./extension\"",
+            "export type {StateCommand} from \"./extension\""
+          ],
+          [
+            "export {Facet, StateField, Extension, Prec, Compartment} from \"./facet\"",
+            [
+              "export {Facet, StateField, Prec, Compartment} from \"./facet\"",
+              "export type {Extension} from \"./facet\""
+            ]
+          ],
+          [
+            "export {Transaction, TransactionSpec, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+            [
+              "export {Transaction, Annotation, AnnotationType, StateEffect, StateEffectType} from \"./transaction\"",
+              "export type {TransactionSpec} from \"./transaction\""
+            ]
+          ],
+          [
+            "export {ChangeSpec, ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+            [
+              "export {ChangeSet, ChangeDesc, MapMode} from \"./change\"",
+              "export type {ChangeSpec} from \"./change\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/text",
+      "github": "codemirror/text",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {Line, TextIterator, Text} from \"./text\"",
+            [
+              "export {Line, Text} from \"./text\"",
+              "export type {TextIterator} from \"./text\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/commands",
+      "github": "codemirror/commands",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/language",
+      "github": "codemirror/language",
+      "patch": {}
+    },
+    {
+      "npm": "@codemirror/view",
+      "github": "codemirror/view",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {EditorView, DOMEventMap, DOMEventHandlers} from \"./editorview\"",
+            [
+              "export {EditorView} from \"./editorview\"",
+              "export type {DOMEventMap, DOMEventHandlers} from \"./editorview\""
+            ]
+          ],
+          [
+            "export {Command, ViewPlugin, PluginValue, PluginSpec, PluginFieldProvider, PluginField, ViewUpdate, logException} from \"./extension\"",
+            [
+              "export {ViewPlugin, PluginFieldProvider, PluginField, ViewUpdate, logException} from \"./extension\"",
+              "export type {Command, PluginValue, PluginSpec} from \"./extension\""
+            ]
+          ],
+          [
+            "export {Decoration, DecorationSet, WidgetType, BlockType} from \"./decoration\"",
+            [
+              "export {Decoration, WidgetType, BlockType} from \"./decoration\"",
+              "export type {DecorationSet} from \"./decoration\""
+            ]
+          ],
+          [
+            "export {MouseSelectionStyle} from \"./input\"",
+            "export type {MouseSelectionStyle} from \"./input\""
+          ],
+          [
+            "export {KeyBinding, keymap, runScopeHandlers} from \"./keymap\"",
+            [
+              "export {keymap, runScopeHandlers} from \"./keymap\"",
+              "export type {KeyBinding} from \"./keymap\""
+            ]
+          ],
+          [
+            "export {Rect} from \"./dom\"",
+            "export type {Rect} from \"./dom\""
+          ]
+        ],
+        "src/inlineview.ts": [
+          [
+            "  dom!: Text | null",
+            "  declare dom: Text | null"
+          ],
+          [
+            "  dom!: HTMLElement | null",
+            "  declare dom: HTMLElement | null"
+          ],
+          [
+            "  dom!: HTMLElement | null",
+            "  declare dom: HTMLElement | null"
+          ],
+          [
+            "  widget!: CompositionWidget",
+            "  declare widget: CompositionWidget"
+          ],
+          [
+            "  dom!: HTMLElement | null",
+            "  declare dom: HTMLElement | null"
+          ]
+        ],
+        "src/blockview.ts": [
+          [
+            "  dom!: HTMLElement | null",
+            "  declare dom: HTMLElement | null"
+          ],
+          [
+            "  dom!: HTMLElement | null",
+            "  declare dom: HTMLElement | null"
+          ],
+          [
+            "  parent!: DocView | null",
+            "  declare parent: DocView | null"
+          ]
+        ],
+        "src/docview.ts": [
+          [
+            "  dom!: HTMLElement",
+            "  declare dom: HTMLElement"
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@codemirror/matchbrackets",
+      "github": "codemirror/matchbrackets",
+      "patch": {}
+    },
+    {
+      "npm": "@lezer/common",
+      "github": "lezer-parser/common",
+      "entry": "src/index.ts",
+      "patch": {
+        "src/index.ts": [
+          [
+            [
+              "export {DefaultBufferLength, NodeProp, MountedTree, NodePropSource, NodeType, NodeSet, Tree,",
+              "        TreeBuffer, SyntaxNode, TreeCursor, BufferCursor} from \"./tree\""
+            ],
+            [
+              "export {DefaultBufferLength, NodeProp, MountedTree, NodeType, NodeSet, Tree, TreeBuffer, TreeCursor} from \"./tree\"",
+              "export type {NodePropSource, SyntaxNode, BufferCursor} from \"./tree\""
+            ]
+          ],
+          [
+            "export {ChangedRange, TreeFragment, PartialParse, Parser, Input, ParseWrapper} from \"./parse\"",
+            [
+              "export {TreeFragment, Parser} from \"./parse\"",
+              "export type {ChangedRange, PartialParse, Input, ParseWrapper} from \"./parse\""
+            ]
+          ],
+          [
+            "export {NestedParse, parseMixed} from \"./mix\"",
+            [
+              "export {parseMixed} from \"./mix\"",
+              "export type {NestedParse} from \"./mix\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "@lezer/lr",
+      "github": "lezer-parser/lr",
+      "entry": "src/index.ts",
+      "patch": {
+        "src/index.ts": [
+          [
+            "export {LRParser, ParserConfig, ContextTracker} from \"./parse\"",
+            [
+              "export {LRParser, ContextTracker} from \"./parse\"",
+              "export type {ParserConfig} from \"./parse\""
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "npm": "w3c-keyname",
+      "github": "marijnh/w3c-keyname"
+    }
+  ]
+}
+```
+
+In the above, in `blockview.ts` there are two lines that have the same thing. They
+change to the same thing, so this will work, but the patch format should have the
+line number.
+
+Building the import map and the patched files:
+
+```
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps10.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps10.json
+```
+
+Bundling again:
+
+```bash
+NO_COLOR=1 deno bundle --config=browser-bundle-config.json --import-map=import-map.json example2.ts > output3.txt 2>&1
+```
+
+##### `output3.txt`
+
+```
+Check file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/example2.ts
+error: TS2305 [ERROR]: Module '"https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.js"' has no exported member 'StyleSpec'.
+import {StyleModule, StyleSpec} from "style-mod"
+                     ~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:2:22
+
+TS7006 [ERROR]: Parameter 'sel' implicitly has an 'any' type.
+    finish(sel) {
+           ~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:14:12
+
+TS7006 [ERROR]: Parameter 'm' implicitly has an 'any' type.
+      return /&/.test(sel) ? sel.replace(/&\w*/, m => {
+                                                 ^
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:15:50
+
+TS2305 [ERROR]: Module '"https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.js"' has no exported member 'StyleSpec'.
+import {StyleModule, StyleSpec} from "style-mod"
+                     ~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/editorview.ts:4:22
+
+TS2612 [ERROR]: Property 'point' will overwrite the base property in 'RangeValue'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  point!: boolean
+  ~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/decoration.ts:185:3
+
+TS7022 [ERROR]: 'parent' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:797:7
+
+TS7023 [ERROR]: 'parent' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:797:7
+
+TS7022 [ERROR]: 'nextSibling' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get nextSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:801:7
+
+TS7023 [ERROR]: 'nextSibling' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get nextSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:801:7
+
+TS7022 [ERROR]: 'prevSibling' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get prevSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:804:7
+
+TS7023 [ERROR]: 'prevSibling' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get prevSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:804:7
+
+TS7022 [ERROR]: 'parent' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:889:7
+
+TS7023 [ERROR]: 'parent' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:889:7
+
+TS2580 [ERROR]: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+const verbose = typeof process != "undefined" && /\bparse\b/.test(process.env.LOG!)
+                       ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/parse.ts:12:24
+
+TS2580 [ERROR]: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+const verbose = typeof process != "undefined" && /\bparse\b/.test(process.env.LOG!)
+                                                                  ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/parse.ts:12:67
+
+TS7053 [ERROR]: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
+  No index signature with a parameter of type 'number' was found on type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
+      (baseName = base[event.keyCode]) && baseName != name) {
+                  ~~~~~~~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/keymap.ts:208:19
+
+Found 16 errors.
+```
+
+The first error here is due to missing type definitions:
+
+```
+Check file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/example2.ts
+error: TS2305 [ERROR]: Module '"https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.js"' has no exported member 'StyleSpec'.
+import {StyleModule, StyleSpec} from "style-mod"
+                     ~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/theme.ts:2:22
+```
+
+`style-mod.js` doesn't export a type, because it isn't a typescript file, and doesn't
+include the TypeScript definitions in a way that Deno can use. To fix this, a
+reference comment needs to be added to the `.js` file:
+
+```js
+/// <reference types="./style-mod.d.ts" />
+```
+
+Let's see if this fixes it, by manually adding a patch to `deps10.js`. Here we'll take
+replace the first three lines of `style-mod.js` so it will match.
+
+After this, we'll change the patch format to include the line number so something
+can be added to the top without depending on the content of the file.
+
+##### `e7/add_type_reference.js`
+
+```ts
+const [inputFile, outputFile] = Deno.args;
+const deps = JSON.parse(await Deno.readTextFile(inputFile));
+const dep = deps.deps.find(({github}) => github === 'marijnh/style-mod');
+const url = 'https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.js';
+const lines = (await (await fetch(url)).text()).split("\n");
+const newLine = '/// <reference types="https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.d.ts" />';
+dep.patch = {
+  ...dep.patch,
+  'src/style-mod.js': [
+    ...((dep.patch && dep.patch['src/style-mod.js']) || []),
+    [lines.slice(0, 3), [newLine, ...lines.slice(0, 3)]]
+  ],
+};
+await Deno.writeTextFile(outputFile, JSON.stringify(deps, null, 2));
+```
+
+Running it:
+
+```
+deno run --allow-read=deps10.json --allow-write=deps11.json \
+--allow-net=cdn.jsdelivr.net \
+add_type_reference.js deps10.json deps11.json
+```
+
+Building it:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps11.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps11.json
+```
+
+Bundling:
+
+```bash
+NO_COLOR=1 deno bundle --config=browser-bundle-config.json --import-map=import-map.json example2.ts > output4.txt 2>&1
+```
+
+##### `e7/output4.txt`
+
+```
+Download https://cdn.jsdelivr.net/gh/marijnh/style-mod@4.0.0/src/style-mod.d.ts
+Check file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/example2.ts
+error: TS7022 [ERROR]: 'parent' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:797:7
+
+TS7023 [ERROR]: 'parent' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:797:7
+
+TS7022 [ERROR]: 'nextSibling' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get nextSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:801:7
+
+TS7023 [ERROR]: 'nextSibling' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get nextSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:801:7
+
+TS7022 [ERROR]: 'prevSibling' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get prevSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:804:7
+
+TS7023 [ERROR]: 'prevSibling' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get prevSibling() {
+      ~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:804:7
+
+TS7022 [ERROR]: 'parent' implicitly has type 'any' because it does not have a type annotation and is referenced directly or indirectly in its own initializer.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:889:7
+
+TS7023 [ERROR]: 'parent' implicitly has return type 'any' because it does not have a return type annotation and is referenced directly or indirectly in one of its return expressions.
+  get parent() {
+      ~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/common@0.15.12/src/tree.ts:889:7
+
+TS2612 [ERROR]: Property 'point' will overwrite the base property in 'RangeValue'. If this is intentional, add an initializer. Otherwise, add a 'declare' modifier or remove the redundant declaration.
+  point!: boolean
+  ~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/decoration.ts:185:3
+
+TS2580 [ERROR]: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+const verbose = typeof process != "undefined" && /\bparse\b/.test(process.env.LOG!)
+                       ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/parse.ts:12:24
+
+TS2580 [ERROR]: Cannot find name 'process'. Do you need to install type definitions for node? Try `npm i --save-dev @types/node`.
+const verbose = typeof process != "undefined" && /\bparse\b/.test(process.env.LOG!)
+                                                                  ~~~~~~~
+    at https://cdn.jsdelivr.net/gh/lezer-parser/lr@0.15.8/src/parse.ts:12:67
+
+TS7053 [ERROR]: Element implicitly has an 'any' type because expression of type 'number' can't be used to index type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
+  No index signature with a parameter of type 'number' was found on type '{ 8: string; 9: string; 10: string; 12: string; 13: string; 16: string; 17: string; 18: string; 20: string; 27: string; 32: string; 33: string; 34: string; 35: string; 36: string; 37: string; 38: string; 39: string; 40: string; ... 33 more ...; 229: string; }'.
+      (baseName = base[event.keyCode]) && baseName != name) {
+                  ~~~~~~~~~~~~~~~~~~~
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/keymap.ts:208:19
+
+Found 12 errors.
+```
+
+Down from 16 errors to 12 errors. We'll patch these up one by one. This took several
+runs to get it working, and those extra runs are ommitted.
+
+##### `e7/manual_patches.json`
+
+```json
+{
+  "lezer-parser/common": {
+    "src/tree.ts": [
+      [
+        [
+          "  get parent() {",
+          "    return this._parent || this.context.parent.nextSignificantParent()"
+        ],
+        [
+          "  get parent(): TreeNode | BufferNode | null {",
+          "    return this._parent || this.context.parent.nextSignificantParent()"
+        ]
+      ],
+      [
+        [
+          "  get parent() {",
+          "    return this._parent ? this._parent.nextSignificantParent() : null"
+        ],
+        [
+          "  get parent(): TreeNode | null {",
+          "    return this._parent ? this._parent.nextSignificantParent() : null"
+        ]
+      ],
+      [
+        "  get nextSibling() {",
+        "  get nextSibling(): TreeNode | BufferNode | null {"
+      ],
+      [
+        "  get prevSibling() {",
+        "  get prevSibling(): TreeNode | BufferNode | null {"
+      ]
+    ]
+  },
+  "codemirror/view": {
+    "src/decoration.ts": [
+      [
+        "point!: boolean",
+        "declare point: boolean"
+      ]
+    ],
+    "src/keymap.ts": [
+      [
+        "      (baseName = base[event.keyCode]) && baseName != name) {",
+        "      (baseName = base[event.keyCode as keyof typeof base]) && baseName != name) {"
+      ]
+    ]
+  },
+  "lezer-parser/lr": {
+    "src/parse.ts": [
+      [
+        "const verbose = typeof process != \"undefined\" && /\\bparse\\b/.test(process.env.LOG!)",
+        "const verbose = false"
+      ]
+    ]
+  }
+}
+```
+
+##### `e7/add_manual_patches.js`
+
+```ts
+const [inputFile, manualPatchFile, outputFile] = Deno.args;
+const deps = JSON.parse(await Deno.readTextFile(inputFile));
+const manualPatches = JSON.parse(await Deno.readTextFile(manualPatchFile));
+for (const [github, repoPatches] of Object.entries(manualPatches)) {
+  const dep = deps.deps.find(({github: value}) => value === github);
+  for (const [file, patches] of Object.entries(repoPatches)) {
+    dep.patch = {
+      ...dep.patch,
+      [file]: [
+        ...((dep.patch && dep.patch[file]) || []),
+        ...patches,
+      ],
+    };
+  }
+}
+
+await Deno.writeTextFile(outputFile, JSON.stringify(deps, null, 2));
+```
+
+Running it:
+
+```
+deno run --allow-read=deps11.json,manual_patches.json --allow-write=deps12.json \
+--allow-net=cdn.jsdelivr.net \
+add_manual_patches.js deps11.json manual_patches.json deps12.json
+```
+
+Building it:
+
+```bash
+deno run --allow-env=GITHUB_API_TOKEN \
+--allow-net=api.github.com,cdn.jsdelivr.net \
+--allow-read=deps12.json,patch \
+--allow-write=import-map.json,patch \
+build.js \
+deps12.json
+```
+
+Bundling:
+
+```bash
+NO_COLOR=1 deno bundle --config=browser-bundle-config.json --import-map=import-map.json example2.ts > bundle.js
+```
+
+Here's an HTML file to import the bundle:
+
+##### `e7/index.html`
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <title>Example</title>
+  </head>
+  <body>
+    <script src="/bundle.js" type="module"></script>
+  </body>
+</html>
+```
+
+Now testing it:
+
+```
+deno run --allow-net --allow-read https://deno.land/std/http/file_server.ts
+> HTTP server listening on http://localhost:4507/
+```
+
+There is an error that it's missing `isFieldProvider` which is declared as
+`declare const isFieldProvider: unique symbol` in the [source](https://github.com/codemirror/view/blob/5818c19651397af1363c8f85f6ec4f16ae911ba4/src/extension.ts#L95). Nothing shows up.
+
+If I go into `bundle.js` and manually add `const isFieldProvider = Symbol();`, that
+error goes away, and it shows a text box, but there are a bunch of errors and it loses
+text when selecting it.
+
+The same error shows when trying to run directly from Deno:
+
+```
+❯ deno run --config=browser-bundle-config.json --import-map=import-map.json example2.ts
+Check file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e7/example2.ts
+error: Uncaught ReferenceError: isFieldProvider is not defined
+  private [isFieldProvider]!: true
+           ^
+    at https://cdn.jsdelivr.net/gh/codemirror/view@0.19.47/src/extension.ts:102:12
+```
+
