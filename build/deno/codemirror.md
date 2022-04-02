@@ -119,8 +119,115 @@ console.log(JSON.stringify({imports}, null, 2));
 Running this:
 
 ```
-deno run --allow-net=data.jsdelivr.com get_top_level_packages.ts
+❯ deno run --allow-net=data.jsdelivr.com get_top_level_packages.ts
+Check file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e1/get_top_level_packages.ts
+{
+  "imports": {
+    "@codemirror/basic-setup": "0.19.1",
+    "@codemirror/lang-javascript": "0.19.7"
+  }
+}
 ```
+
+Now this needs to be run recursively, getting the dependencies, adding them to
+the data, and skipping any that have already been retrieved.
+
+##### `e1/get_dependencies.ts`
+
+```ts
+import { getPackage } from './get_package.ts';
+
+export type DependencyMap = {[key: string]: string}
+
+interface PackageJson {
+  dependencies: DependencyMap | undefined
+  version: string
+}
+
+export interface Package {
+  dependencies ?: DependencyMap
+  dependents ?: DependencyMap
+  version: string
+}
+
+export type PackageInfo = {[key: string]: Package}
+
+export async function getPackageJson(
+  name: string,
+  version: string
+): Promise<PackageJson> {
+  const url = `https://cdn.jsdelivr.net/npm/${name}@${version}/package.json`;
+  const resp = await fetch(url);
+  const text = await resp.text();
+  const result = JSON.parse(text) as PackageJson;
+  return result;
+}
+
+export async function visitDependency(
+  packages: PackageInfo, name: string, versionRange: string
+): Promise<void> {
+  const version = await getPackage(name, versionRange);
+  if (typeof version !== 'string') {
+    throw new Error('expected version to be a string');
+  }
+  const packageJson = await getPackageJson(name, version);
+  packages[name] = {
+    version: packageJson.version,
+  }
+  const dependencies = packageJson.dependencies;
+  if (dependencies) {
+    packages[name].dependencies = dependencies
+    for (const [depName, depVersion] of Object.entries(dependencies)) {
+      let depPackage = packages[depName];
+      if (depPackage === undefined) {
+        await visitDependency(packages, depName, depVersion);
+      }
+      depPackage = packages[depName]
+      if (depPackage !== undefined) {
+        let dependents = depPackage.dependents
+        if (dependents === undefined) {
+          dependents = {};
+          depPackage.dependents = dependents;
+        }
+        dependents[name] = packageJson.version;
+      }
+    }
+  }
+}
+
+export async function getDependencies(
+  dependencies: DependencyMap
+): Promise<PackageInfo> {
+  const packages: PackageInfo = {};
+  for (const [depName, depVersion] of Object.entries(dependencies)) {
+    await visitDependency(packages, depName, depVersion);
+  }
+  return packages;
+}
+```
+
+Here is a script to run it:
+
+##### `e1/get_packages_with_dependencies.ts`
+
+```ts
+import { getDependencies } from './get_dependencies.ts';
+
+const dependencies = await getDependencies({
+  '@codemirror/basic-setup': '*',
+  '@codemirror/lang-javascript': '*',
+});
+console.log(JSON.stringify(dependencies, null, 2));
+```
+
+Running this:
+
+```
+❯ deno run --allow-net=data.jsdelivr.com,cdn.jsdelivr.net get_packages_with_dependencies.ts
+```
+
+- TODO: load in parallel
+- TODO: get the locations of the module and the types
 
 [bwr]: https://codemirror.net/6/examples/bundle/
 [jsdelivr]: https://www.jsdelivr.com/
