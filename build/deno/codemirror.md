@@ -4,19 +4,14 @@ The goal here is to make a CodeMirror 6-based code editing component from
 npm with Deno. This will use import maps so npm modules can find each
 other without modifying the source.
 
-A previous attempt was to bundle straight from npm. It built, but doesn't
-work yet:
-
-- [Bundling CodeMirror 6 from GitHub with Deno](./codemirror-from-github.md)
-
-## Getting dependencies and generating an import map
+## Step 1: Getting dependencies
 
 Here is code for loading an editor, from the [Bundling with Rollup][bwr]
 example from CodeMirror:
 
-##### `e1/example.ts`
+##### `example.js`
 
-```ts
+```js
 import {EditorState, EditorView, basicSetup} from "@codemirror/basic-setup"
 import {javascript} from "@codemirror/lang-javascript"
 
@@ -29,7 +24,8 @@ let editor = new EditorView({
 ```
 
 For `deno bundle` to be able to bundle this, we need an import map. The
-import map needs to map `npm` packages to 
+import map needs to map `npm` packages from their names to the es modules
+on `jsDelivr`.
 
 We'll do this without relying on the `npm` program, but instead fetching
 the files straight from [jsDelivr][jsdelivr], starting with `package.json`
@@ -74,7 +70,7 @@ Let's make the first API requests and get the version numbers for the
 `@codemirror/basic-setup` and `@codemirror/lang-javascript` with '*'
 as the semver version range, and then gather their dependencies.
 
-##### `e1/get_package.ts`
+##### `get_package.ts`
 
 ```ts
 const baseUrl = 'https://data.jsdelivr.com/v1';
@@ -103,7 +99,7 @@ export async function getPackage(name: string, versionRange = '*'): Promise<any>
 }
 ```
 
-##### `e1/get_top_level_packages.ts`
+##### `get_top_level_packages.ts`
 
 ```ts
 import { getPackage } from './get_package.ts';
@@ -119,8 +115,12 @@ console.log(JSON.stringify({imports}, null, 2));
 Running this:
 
 ```
-❯ deno run --allow-net=data.jsdelivr.com get_top_level_packages.ts
-Check file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e1/get_top_level_packages.ts
+deno run --allow-net=data.jsdelivr.com get_top_level_packages.ts
+```
+
+It outputs the following:
+
+```json
 {
   "imports": {
     "@codemirror/basic-setup": "0.19.1",
@@ -132,7 +132,7 @@ Check file:///Users/bat/proyectos/notebook/macchiato/build/deno/codemirror/e1/ge
 Now this needs to be run recursively, getting the dependencies, adding them to
 the data, and skipping any that have already been retrieved.
 
-##### `e1/get_dependencies.ts`
+##### `get_dependencies.ts`
 
 ```ts
 import { getPackage } from './get_package.ts';
@@ -148,6 +148,7 @@ export interface Package {
   dependencies ?: DependencyMap
   dependents ?: DependencyMap
   version: string
+  packageJson: any
 }
 
 export type PackageInfo = {[key: string]: Package}
@@ -173,7 +174,8 @@ export async function visitDependency(
   const packageJson = await getPackageJson(name, version);
   packages[name] = {
     version: packageJson.version,
-  }
+    packageJson,
+  };
   const dependencies = packageJson.dependencies;
   if (dependencies) {
     packages[name].dependencies = dependencies
@@ -208,7 +210,7 @@ export async function getDependencies(
 
 Here is a script to run it:
 
-##### `e1/get_packages_with_dependencies.ts`
+##### `get_packages_with_dependencies.ts`
 
 ```ts
 import { getDependencies } from './get_dependencies.ts';
@@ -217,17 +219,87 @@ const dependencies = await getDependencies({
   '@codemirror/basic-setup': '*',
   '@codemirror/lang-javascript': '*',
 });
-console.log(JSON.stringify(dependencies, null, 2));
+const json = JSON.stringify(dependencies, null, 2);
+await Deno.writeTextFile('dependencies.json', json);
 ```
 
 Running this:
 
 ```
-❯ deno run --allow-net=data.jsdelivr.com,cdn.jsdelivr.net get_packages_with_dependencies.ts
+deno run --allow-net=data.jsdelivr.com,cdn.jsdelivr.net \
+--allow-write=dependencies.json get_packages_with_dependencies.ts
 ```
 
-- TODO: load in parallel
-- TODO: get the locations of the module and the types
+## Step 2: Building an import map
+
+The import map will map the package names in npm to module URLs on jsDelivr.
+
+##### `build_import_map.ts`
+
+```ts
+if (Deno.args.length !== 2) {
+  throw new Error('Must give inputFile and outputFile as arguments');
+}
+const [inputFile, outputFile] = Deno.args;
+interface Package {
+  version: string
+  packageJson: {
+    name: string
+    module?: string
+  }
+}
+const inputJson = await Deno.readTextFile(inputFile);
+const dependencies = JSON.parse(inputJson) as {[key: string]: Package};
+const imports = Object.fromEntries(Object.entries(dependencies).map(
+  ([name, {version, packageJson: {module}}]) => {
+    if (![name, version, module].every(v => typeof v === 'string')) {
+      throw new Error(
+        'expected these to be strings: ' + JSON.stringify({name, version, module})
+      );
+    }
+    const url = `https://cdn.jsdelivr.net/npm/${name}@${version}/${module}`
+    return [name, url];
+  }
+))
+Deno.writeTextFile(outputFile, JSON.stringify({imports}, null, 2));
+```
+
+Running it:
+
+```
+deno run --allow-read=dependencies.json --allow-write=import-map.json \
+build_import_map.ts dependencies.json import-map.json
+```
+
+## Step 3: Bundling with the import map and running it
+
+Bundling it using `deno bundle`:
+
+```
+deno bundle --import-map=import-map.json example.js bundle.js
+```
+
+##### `index.html`
+
+```html
+<!doctype html>
+<html lang="en">
+  <head>
+    <title>CodeMirror example</title>
+    <meta charset="utf-8">
+  </head>
+  <body>
+    <script type="module" src="/bundle.js"></script>
+  </body>
+</html>
+```
+
+Now, run it using a simple development HTTP server like Deno's `file_server`
+and load it in the browser:
+
+```
+deno run --allow-net --allow-read https://deno.land/std@0.133.0/http/file_server.ts
+```
 
 [bwr]: https://codemirror.net/6/examples/bundle/
 [jsdelivr]: https://www.jsdelivr.com/
