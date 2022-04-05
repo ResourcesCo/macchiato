@@ -94,6 +94,65 @@ These versions can be used to get the `package.json` from the jsDelivr CDN.
 
 TODO: get types as well and store them in a separate JSON file
 
+## Documentation
+
+##### `README.md`
+
+```md
+# deliver_importmaps
+
+This is a tool for generating an import map for loading JavaScript modules straight
+from the source inside of npm packages, delivered by the [jsDelivr CDN][jsd].
+
+## Source
+
+This is generated from a markdown document, [deliver_importmaps.md][src], using
+[md_unpack_simple][md_unpack_simple].
+
+## License
+
+MIT
+
+## TODO
+
+- Get `package.json` from jsDelivr CDN for packages
+- Recursively get dependencies, with `version`, `module` and `types` from `package.json`
+- Generate imports for import maps
+- Provide a script for running it from the command line
+- Provide directions for using it programatically
+- Provide a way to import the types
+
+[jsd]: https://jsdelivr.net/
+[src]: https://github.com/ResourcesCo/macchiato/blob/main/build/deno/deliver_importmaps.md
+[md_unpack_simple]: https://deno.land/x/md_unpack_simple
+```
+
+##### `LICENSE`
+
+```
+MIT License
+
+Copyright (c) 2022 Resources.co
+
+Permission is hereby granted, free of charge, to any person obtaining a copy
+of this software and associated documentation files (the "Software"), to deal
+in the Software without restriction, including without limitation the rights
+to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
+copies of the Software, and to permit persons to whom the Software is
+furnished to do so, subject to the following conditions:
+
+The above copyright notice and this permission notice shall be included in all
+copies or substantial portions of the Software.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
+OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.
+```
+
 [jsd]: https://jsdelivr.net/
 [dlx]: https://deno.land/x
 [dnt]: https://github.com/denoland/dnt/
