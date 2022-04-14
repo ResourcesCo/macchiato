@@ -16,14 +16,14 @@ gets the version from the response.
 ##### `get_version.ts`
 
 ```ts
-const baseUrl = 'https://data.jsdelivr.com/v1';
+const baseUrl = "https://data.jsdelivr.com/v1";
 const headers = {
-  Accept: 'application/json',
-  'User-Agent': 'Macchiato https://github.com/macchiato-dev/deliver_importmaps',
+  Accept: "application/json",
+  "User-Agent": "Macchiato https://github.com/macchiato-dev/deliver_importmaps",
 };
 
 function splitPackageName(name: string): string[] {
-  const pos = name.indexOf('/');
+  const pos = name.indexOf("/");
   if (pos === -1) {
     return [name];
   } else {
@@ -31,8 +31,11 @@ function splitPackageName(name: string): string[] {
   }
 }
 
-export async function getVersion(name: string, versionRange = '*'): Promise<string> {
-  const urlName = splitPackageName(name).map(s => encodeURI(s)).join('/');
+export async function getVersion(
+  name: string,
+  versionRange = "*",
+): Promise<string> {
+  const urlName = splitPackageName(name).map((s) => encodeURI(s)).join("/");
   const urlVersionRange = encodeURI(versionRange);
   const url = `${baseUrl}/package/resolve/npm/${urlName}@${urlVersionRange}`;
   const resp = await fetch(url);
@@ -51,22 +54,22 @@ Some quick tests:
 ##### `get_version_test.ts`
 
 ```ts
-import { getVersion } from './get_version.ts';
+import { getVersion } from "./get_version.ts";
 import { assert } from "https://deno.land/std@0.133.0/testing/asserts.ts";
 
-Deno.test('with organization', async () => {
-  const version = await getVersion('style-mod');
+Deno.test("with organization", async () => {
+  const version = await getVersion("style-mod");
   assert(/^\d+\./.test(version));
 });
 
-Deno.test('without organization', async () => {
-  const version = await getVersion('@codemirror/view');
+Deno.test("without organization", async () => {
+  const version = await getVersion("@codemirror/view");
   assert(/^\d+\./.test(version));
 });
 
-Deno.test('with version', async () => {
-  const version = await getVersion('@codemirror/view', '0.19.48');
-  assert(version === '0.19.48');
+Deno.test("with version", async () => {
+  const version = await getVersion("@codemirror/view", "0.19.48");
+  assert(version === "0.19.48");
 });
 ```
 
@@ -90,9 +93,84 @@ test result: ok. 3 passed; 0 failed; 0 ignored; 0 measured; 0 filtered out (1s)
 
 These versions can be used to get the `package.json` from the jsDelivr CDN.
 
-## Getting package.json
+## Getting info from package.json
 
-TODO: get types as well and store them in a separate JSON file
+This gets the information from `package.json` and checks that the needed information
+is there.
+
+##### `get_package_info.ts`
+
+```ts
+interface PackageInfo {
+  name: string;
+  version: string;
+  module: string;
+  types?: string;
+  dependencies: { [key: string]: string };
+}
+
+export async function getPackageInfo(
+  name: string,
+  version: string,
+): Promise<PackageInfo> {
+  const url = `https://cdn.jsdelivr.net/npm/${name}@${version}/package.json`;
+  const resp = await fetch(url);
+  if (!resp.ok) {
+    throw new Error(`Error getting package.json for ${name}@${version}`);
+  }
+  const pkg = await resp.json();
+  if (typeof pkg.name !== "string" || typeof pkg.version !== "string") {
+    throw new Error(
+      `Missing name or version in package.json for ${name}@${version}`,
+    );
+  }
+  const module = (
+    typeof pkg.module === "string" ? pkg.module : (
+      pkg.type === "module"
+        ? (typeof pkg.main === "string" ? pkg.main : "index.js")
+        : undefined
+    )
+  );
+  if (typeof module !== "string") {
+    throw new Error(`Cannot resolve module for ${name}@${version}`);
+  }
+  if (typeof pkg.types !== "string" && pkg.types !== undefined) {
+    throw new Error(`Invalid types in package.json for ${name}@${version}`);
+  }
+  const dependencies = (pkg.dependencies || {}) as { [key: string]: string };
+  return {
+    name: pkg.name,
+    version: pkg.version,
+    module: module,
+    ...(pkg.types ? { types: pkg.types } : undefined),
+    dependencies,
+  };
+}
+```
+
+Here are some basic tests.
+
+##### `get_package_info_test.ts`
+
+```ts
+import { getPackageInfo } from "./get_package_info.ts";
+import { assertEquals } from "https://deno.land/std@0.133.0/testing/asserts.ts";
+
+Deno.test("with dependencies", async () => {
+  const info = await getPackageInfo("@codemirror/state", "0.19.9");
+  assertEquals(Object.keys(info.dependencies).length, 1);
+});
+
+Deno.test("without dependencies", async () => {
+  const info = await getPackageInfo("style-mod", "4.0.0");
+  assertEquals(info.dependencies, {});
+});
+```
+
+Next, the information can be used to get all dependencies and construct an
+import map.
+
+## Getting dependencies
 
 ## Documentation
 
@@ -101,8 +179,9 @@ TODO: get types as well and store them in a separate JSON file
 ```md
 # deliver_importmaps
 
-This is a tool for generating an import map for loading JavaScript modules straight
-from the source inside of npm packages, delivered by the [jsDelivr CDN][jsd].
+This is a tool for generating an import map for loading JavaScript modules
+straight from the source inside of npm packages, delivered by the
+[jsDelivr CDN][jsd].
 
 ## Source
 
@@ -116,7 +195,8 @@ MIT
 ## TODO
 
 - Get `package.json` from jsDelivr CDN for packages
-- Recursively get dependencies, with `version`, `module` and `types` from `package.json`
+- Recursively get dependencies, with `version`, `module` and `types` from
+  `package.json`
 - Generate imports for import maps
 - Provide a script for running it from the command line
 - Provide directions for using it programatically
