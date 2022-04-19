@@ -101,7 +101,7 @@ is there.
 ##### `get_package_info.ts`
 
 ```ts
-interface PackageInfo {
+export interface PackageInfo {
   name: string;
   version: string;
   module: string;
@@ -171,6 +171,64 @@ Next, the information can be used to get all dependencies and construct an
 import map.
 
 ## Getting dependencies
+
+##### `get_dependencies.ts`
+
+```ts
+import { getVersion } from "./get_version.ts";
+import { getPackageInfo, PackageInfo } from "./get_package_info.ts";
+
+async function visitDependency(
+  packages: { [key: string]: PackageInfo },
+  name: string,
+  versionRange: string,
+): Promise<void> {
+  const version = await getVersion(name, versionRange);
+  const packageInfo = await getPackageInfo(name, version);
+  packages[name] = packageInfo;
+  for (
+    const [depName, depVersion] of Object.entries(packageInfo.dependencies)
+  ) {
+    if (!packages[depName]) {
+      await visitDependency(packages, depName, depVersion);
+    }
+  }
+}
+
+export async function getDependencies(
+  dependencies: { [key: string]: string },
+): Promise<{ [key: string]: PackageInfo }> {
+  const packages = {};
+  for (const [name, version] of Object.entries(dependencies)) {
+    await visitDependency(packages, name, version);
+  }
+  return packages;
+}
+```
+
+##### `get_dependencies_test.ts`
+
+```ts
+import { getDependencies } from "./get_dependencies.ts";
+import { assertEquals } from "https://deno.land/std@0.133.0/testing/asserts.ts";
+
+Deno.test("with dependencies", async () => {
+  const packages = await getDependencies({ "@codemirror/state": "0.19.9" });
+  console.log({ packages });
+  assertEquals(Object.keys(packages).length, 2);
+});
+
+Deno.test("without dependencies", async () => {
+  const packages = await getDependencies({ "style-mod": "4.0.0" });
+  assertEquals(Object.keys(packages).length, 1);
+});
+```
+
+Run:
+
+```bash
+deno test --allow-net=data.jsdelivr.com,cdn.jsdelivr.net get_dependencies_test.ts
+```
 
 ## Documentation
 
