@@ -174,6 +174,8 @@ import map.
 
 ##### `get_dependencies.ts`
 
+This will recursively get dependencies for a module.
+
 ```ts
 import { getVersion } from "./get_version.ts";
 import { getPackageInfo, PackageInfo } from "./get_package_info.ts";
@@ -208,6 +210,8 @@ export async function getDependencies(
 
 ##### `get_dependencies_test.ts`
 
+We'll test by getting the dependencies for a couple of packages.
+
 ```ts
 import { getDependencies } from "./get_dependencies.ts";
 import { assertEquals } from "https://deno.land/std@0.133.0/testing/asserts.ts";
@@ -228,6 +232,28 @@ Run:
 
 ```bash
 deno test --allow-net=data.jsdelivr.com,cdn.jsdelivr.net get_dependencies_test.ts
+```
+
+## Generate import maps and imports with types
+
+The import maps simply map a package's short name on npm to its `.js` file
+on jsDelivr. The imports with types will import each file and add a type
+reference comment above the import.
+
+##### `generate.ts`
+
+```ts
+interface SimpleImportMap {
+  imports: {[key: string]: string}
+}
+
+export async function generateImportMap(packages): Promise<SimpleImportMap> {
+  
+}
+
+export async function generateTypedImports(packages): Promise<string> {
+  
+}
 ```
 
 ## Documentation
