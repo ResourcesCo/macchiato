@@ -248,7 +248,8 @@ interface SimpleImportMap {
 }
 
 export async function generateImportMap(packages): Promise<SimpleImportMap> {
-  
+  const imports = Object.fromEntries(Object.entries(packages).map())
+  return {imports};
 }
 
 export async function generateTypedImports(packages): Promise<string> {
