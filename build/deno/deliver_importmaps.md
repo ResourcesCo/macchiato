@@ -218,7 +218,6 @@ import { assertEquals } from "https://deno.land/std@0.133.0/testing/asserts.ts";
 
 Deno.test("with dependencies", async () => {
   const packages = await getDependencies({ "@codemirror/state": "0.19.9" });
-  console.log({ packages });
   assertEquals(Object.keys(packages).length, 2);
 });
 
@@ -243,18 +242,94 @@ reference comment above the import.
 ##### `generate.ts`
 
 ```ts
+import type { PackageInfo } from "./get_package_info.ts";
+
 interface SimpleImportMap {
-  imports: {[key: string]: string}
+  imports: { [key: string]: string };
 }
 
-export async function generateImportMap(packages): Promise<SimpleImportMap> {
-  const imports = Object.fromEntries(Object.entries(packages).map())
-  return {imports};
+export function generateImportMap(
+  packages: { [key: string]: PackageInfo },
+): SimpleImportMap {
+  const imports = Object.fromEntries(
+    Object.entries(packages).map(
+      ([
+        name,
+        { version, module },
+      ]) => [name, `https://cdn.jsdelivr.net/npm/${name}@${version}/${module}`],
+    ),
+  );
+  return { imports };
 }
 
-export async function generateTypedImports(packages): Promise<string> {
-  
+export function generateTypedImports(
+  packages: { [key: string]: PackageInfo },
+): string {
+  return Object.entries(packages).map(
+    ([
+      name,
+      { version, module, types },
+    ]) => [
+      `// @deno-types="https://cdn.jsdelivr.net/npm/${name}@${version}/${types}"`,
+      `import "https://cdn.jsdelivr.net/npm/${name}@${version}/${module}";`,
+    ].join("\n"),
+  ).join("\n\n") + "\n";
 }
+```
+
+Testing:
+
+##### `generate_test.ts`
+
+```ts
+import { generateImportMap, generateTypedImports } from "./generate.ts";
+import { assertEquals } from "https://deno.land/std@0.133.0/testing/asserts.ts";
+
+const packages = {
+  "@codemirror/state": {
+    name: "@codemirror/state",
+    version: "0.19.9",
+    module: "dist/index.js",
+    types: "dist/index.d.ts",
+    dependencies: { "@codemirror/text": "^0.19.0" }
+  },
+  "@codemirror/text": {
+    name: "@codemirror/text",
+    version: "0.19.6",
+    module: "dist/index.js",
+    types: "dist/index.d.ts",
+    dependencies: {}
+  }
+};
+
+Deno.test("generate import map", () => {
+  const packageInfo = packages["@codemirror/text"];
+  const result = generateImportMap({"@codemirror/text": packageInfo});
+  const url = "https://cdn.jsdelivr.net/npm/@codemirror/text@0.19.6/dist/index.js";
+  assertEquals({imports: {"@codemirror/text": url}}, result);
+});
+
+Deno.test("generate typed endpoints", () => {
+  Deno.writeTextFile("import_map.json", JSON.stringify(generateImportMap(packages), null, 2));
+  Deno.writeTextFile("typed_imports.ts", generateTypedImports(packages));
+});
+```
+
+Run:
+
+```bash
+deno test generate_test.ts
+```
+
+## Main module
+
+The main module provides a method that runs the whole thing and provides a
+command-line interface. The command-line interface reads a file as input
+and writes one or two files as output.
+
+##### `mod.ts`
+
+```ts
 ```
 
 ## Documentation
