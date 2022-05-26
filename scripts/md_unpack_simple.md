@@ -399,12 +399,12 @@ export async function unpack(text: string | undefined = undefined, {
           if (path.startsWith('..') || path.startsWith('/')) {
             throw new Error(`Path ${JSON.stringify(path)} is not inside directory`);
           }
-          await ensureDir(dirname(path));
           let openFile
           let writer
           let bufWriter
           let buffer
           if (stream) {
+            await ensureDir(dirname(path));
             openFile = await open(path, {write: true, create: true});
             bufWriter = BufWriter.create(openFile);
             writer = bufWriter;
