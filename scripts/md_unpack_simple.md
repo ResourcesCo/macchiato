@@ -453,6 +453,7 @@ export async function unpack(text: string | undefined = undefined, {
 export async function write(files: FilePack) {
   for (const path of Object.keys(files)) {
     const data = files[path];
+    await ensureDir(dirname(path));
     if (typeof data === 'string') {
       await Deno.writeTextFile(path, data);
     } else {
@@ -639,7 +640,7 @@ To run, pass a Markdown file to standard input, and give permission to write
 to the current directory:
 
 ```bash
-cat source.md | deno run --allow-write=. --unstable https://deno.land/x/md_unpack_simple/mod.ts
+cat source.md | deno run --allow-read=. --allow-write=. --unstable https://deno.land/x/md_unpack_simple/mod.ts
 ```
 
 This will take embedded files in the source Markdown document and write them
