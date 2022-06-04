@@ -437,12 +437,43 @@ if (import.meta.main) {
 
 ##### `README.md`
 
-```md
+````md
 # deliver_importmaps
+
+[![pipeline status](https://gitlab.com/ResourcesCo/macchiato/deliver_importmaps/badges/main/pipeline.svg)](https://gitlab.com/ResourcesCo/macchiato/deliver_importmaps/-/commits/main)
 
 This is a tool for generating an import map for loading JavaScript modules
 straight from the source inside of npm packages, delivered by the
 [jsDelivr CDN][jsd].
+
+## Installation
+
+To install, run:
+
+```
+deno install --allow-net=data.jsdelivr.com,cdn.jsdelivr.net \
+  https://deno.land/x/deliver_importmaps/0.0.1/main.ts
+```
+
+This will install it as `deliver_importmaps`.
+
+## Running
+
+To run, create a Markdown file with a code block in it that has a list
+of packages and version numbers in a code block called `dependencies.json`
+and pipe it into the command:
+
+```
+cat input.md | deliver_importmaps
+```
+
+The output will contain a code block that has an import map and another
+with the types for creating a file. They can be put into files using
+[md_unpack_simple][md_unpack_simple]:
+
+```
+cat input.md | deliver_importmaps | md_unpack_simple
+```
 
 ## Source
 
@@ -453,20 +484,10 @@ This is generated from a markdown document, [deliver_importmaps.md][src], using
 
 MIT
 
-## TODO
-
-- Get `package.json` from jsDelivr CDN for packages
-- Recursively get dependencies, with `version`, `module` and `types` from
-  `package.json`
-- Generate imports for import maps
-- Provide a script for running it from the command line
-- Provide directions for using it programatically
-- Provide a way to import the types
-
 [jsd]: https://jsdelivr.net/
 [src]: https://github.com/ResourcesCo/macchiato/blob/main/build/deno/deliver_importmaps.md
 [md_unpack_simple]: https://deno.land/x/md_unpack_simple
-```
+````
 
 ##### `LICENSE`
 
@@ -492,6 +513,27 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+```
+
+## Continuous Integration
+
+##### `.gitlab-ci.yml`
+
+```yaml
+stages:
+  - test
+
+image: denoland/deno:ubuntu-1.22.2
+
+deno-lint:
+  stage: test
+  script:
+    - deno lint --unstable
+
+deno-test:
+  stage: test
+  script:
+    - deno test --allow-net=data.jsdelivr.com,cdn.jsdelivr.net --unstable
 ```
 
 [jsd]: https://jsdelivr.net/
