@@ -448,18 +448,36 @@ This is a tool for generating an import map for loading JavaScript modules
 straight from the source inside of npm packages, delivered by the
 [jsDelivr CDN][jsd].
 
-## Installation
+## Usage
+
+```ts
+import {
+  generateImportMap,
+  generateTypedImports,
+  getDependencies,
+} from "https://deno.land/x/deliver_importmaps@0.0.2/mod.ts";
+const dependencies = await getDependencies({ "style-mod": "*" });
+const importMap = generateImportMap(dependencies);
+const typedImports = generateTypedImports(dependencies);
+console.log({ importMap, typedImports });
+```
+
+This permission is needed:
+
+```
+--allow-net=data.jsdelivr.com,cdn.jsdelivr.net
+```
+
+## Command
 
 To install, run:
 
 ```
 deno install --allow-net=data.jsdelivr.com,cdn.jsdelivr.net \
-  https://deno.land/x/deliver_importmaps/0.0.1/main.ts
+  https://deno.land/x/deliver_importmaps@0.0.2/main.ts
 ```
 
 This will install it as `deliver_importmaps`.
-
-## Running
 
 To run, create a Markdown file with a code block in it that has a list
 of packages and version numbers in a code block called `dependencies.json`
