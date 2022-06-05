@@ -38,7 +38,7 @@ export async function getVersion(
   const urlName = splitPackageName(name).map((s) => encodeURI(s)).join("/");
   const urlVersionRange = encodeURI(versionRange);
   const url = `${baseUrl}/package/resolve/npm/${urlName}@${urlVersionRange}`;
-  const resp = await fetch(url);
+  const resp = await fetch(url, {headers});
   if (resp.ok) {
     const respBody = await resp.json() as { version: string };
     const version = respBody.version;
@@ -313,8 +313,10 @@ Deno.test("generate import map", () => {
 
 Deno.test("generate typed endpoints", () => {
   const text = generateTypedImports(packages);
-  assert(/deno-types.*text.*"/.exec(text)[0].endsWith("dist/index.d.ts\""));
-  assert(/deno-types.*state.*"/.exec(text)[0].endsWith("dist/index.d.ts\""));
+  const match1 = /deno-types.*text.*"/.exec(text);
+  assert(match1 && match1[0].endsWith("dist/index.d.ts\""));
+  const match2 = /deno-types.*state.*"/.exec(text);
+  assert(match2 && match2[0].endsWith("dist/index.d.ts\""));
 });
 ```
 
