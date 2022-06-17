@@ -113,10 +113,10 @@ cat markdown_code_editor.md | deliver_importmaps | md_unpack_simple
       "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/token": "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/token.d.ts",
       "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/stack": "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/stack.d.ts"
     },
-    "https://cdn.jsdelivr.net/npm/@lezer/markdown@0.16.1/dist/": {
-      "https://cdn.jsdelivr.net/npm/@lezer/markdown@0.16.1/dist/markdown": "https://cdn.jsdelivr.net/npm/@lezer/markdown@0.16.1/dist/markdown.d.ts",
-      "https://cdn.jsdelivr.net/npm/@lezer/markdown@0.16.1/dist/nest": "https://cdn.jsdelivr.net/npm/@lezer/markdown@0.16.1/dist/nest.d.ts",
-      "https://cdn.jsdelivr.net/npm/@lezer/markdown@0.16.1/dist/extension": "https://cdn.jsdelivr.net/npm/@lezer/markdown@0.16.1/dist/extension.d.ts"
+    "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/": {
+      "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/markdown": "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/markdown.d.ts",
+      "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/nest": "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/nest.d.ts",
+      "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/extension": "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/extension.d.ts"
     }
   }
 }
@@ -662,14 +662,16 @@ class CodeEditor extends HTMLElement {
   }
 
   connectedCallback() {
+    const isDark = true;
     const styleCompartment = new Compartment();
 
     const darkStyleExtension = [darkHighlightStyle, darkTheme];
     const lightStyleExtension = [lightHighlightStyle, lightTheme];
     const getStyleExtension = () => {
-      return isDark.value ? darkStyleExtension : lightStyleExtension;
+      return isDark ? darkStyleExtension : lightStyleExtension;
     };
     let styleExtension = getStyleExtension();
+    const markdownLanguage = language();
 
     const extensions = [
       highlightSpecialChars(),
@@ -698,19 +700,19 @@ class CodeEditor extends HTMLElement {
       styleCompartment.of(styleExtension),
       EditorView.lineWrapping,
       placeholder("# Enter some markdown here..."),
-      EditorView.updateListener.of((v) => {
+      /*EditorView.updateListener.of((v) => {
         if (v.docChanged) {
-          ctx.emit("change", editor.state.doc);
+          //ctx.emit("change", editor.state.doc);
         }
-      }),
+      }),*/
     ];
 
-    this.editor = new EditorView({
+    const editor = new EditorView({
       state: EditorState.create({
-        doc: props.page.body,
+        doc: ''/*props.page.body*/,
         extensions,
       }),
-      parent: root.value,
+      parent: this.shadowRoot,
     });
   }
 }
