@@ -9,7 +9,6 @@ These are the dependencies, built with `@codemirror/`:
   "@codemirror/view": "*",
   "@codemirror/state": "*",
   "@codemirror/history": "*",
-  "@codemirror/fold": "*",
   "@codemirror/language": "*",
   "@codemirror/commands": "*",
   "@codemirror/matchbrackets": "*",
@@ -73,17 +72,15 @@ cat markdown_code_editor.md | deliver_importmaps | md_unpack_simple
     "style-mod": "https://cdn.jsdelivr.net/npm/style-mod@4.0.0/src/style-mod.js",
     "w3c-keyname": "https://cdn.jsdelivr.net/npm/w3c-keyname@2.2.4/index.es.js",
     "@codemirror/history": "https://cdn.jsdelivr.net/npm/@codemirror/history@0.19.2/dist/index.js",
-    "@codemirror/fold": "https://cdn.jsdelivr.net/npm/@codemirror/fold@0.19.4/dist/index.js",
-    "@codemirror/gutter": "https://cdn.jsdelivr.net/npm/@codemirror/gutter@0.19.9/dist/index.js",
-    "@codemirror/rangeset": "https://cdn.jsdelivr.net/npm/@codemirror/rangeset@0.19.9/dist/index.js",
     "@codemirror/language": "https://cdn.jsdelivr.net/npm/@codemirror/language@6.0.0/dist/index.js",
-    "@codemirror/text": "https://cdn.jsdelivr.net/npm/@codemirror/text@0.19.6/dist/index.js",
-    "@lezer/common": "https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/index.js",
-    "@lezer/lr": "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/index.js",
+    "@lezer/common": "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/index.js",
     "@lezer/highlight": "https://cdn.jsdelivr.net/npm/@lezer/highlight@1.0.0/dist/index.js",
+    "@lezer/lr": "https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/index.js",
     "@codemirror/commands": "https://cdn.jsdelivr.net/npm/@codemirror/commands@6.0.0/dist/index.js",
     "@codemirror/matchbrackets": "https://cdn.jsdelivr.net/npm/@codemirror/matchbrackets@0.19.4/dist/index.js",
     "@codemirror/closebrackets": "https://cdn.jsdelivr.net/npm/@codemirror/closebrackets@0.19.2/dist/index.js",
+    "@codemirror/rangeset": "https://cdn.jsdelivr.net/npm/@codemirror/rangeset@0.19.9/dist/index.js",
+    "@codemirror/text": "https://cdn.jsdelivr.net/npm/@codemirror/text@0.19.6/dist/index.js",
     "@codemirror/search": "https://cdn.jsdelivr.net/npm/@codemirror/search@6.0.0/dist/index.js",
     "crelt": "https://cdn.jsdelivr.net/npm/crelt@1.0.5/index.es.js",
     "@codemirror/autocomplete": "https://cdn.jsdelivr.net/npm/@codemirror/autocomplete@6.0.2/dist/index.js",
@@ -103,15 +100,15 @@ cat markdown_code_editor.md | deliver_importmaps | md_unpack_simple
     "@codemirror/highlight": "https://cdn.jsdelivr.net/npm/@codemirror/highlight@0.19.8/dist/index.js"
   },
   "scopes": {
-    "https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/": {
-      "https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/tree": "https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/tree.d.ts",
-      "https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/parse": "https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/parse.d.ts",
-      "https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/mix": "https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/mix.d.ts"
+    "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/": {
+      "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/tree": "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/tree.d.ts",
+      "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/parse": "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/parse.d.ts",
+      "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/mix": "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/mix.d.ts"
     },
-    "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/": {
-      "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/parse": "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/parse.d.ts",
-      "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/token": "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/token.d.ts",
-      "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/stack": "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/stack.d.ts"
+    "https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/": {
+      "https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/parse": "https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/parse.d.ts",
+      "https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/token": "https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/token.d.ts",
+      "https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/stack": "https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/stack.d.ts"
     },
     "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/": {
       "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/markdown": "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/markdown.d.ts",
@@ -140,29 +137,17 @@ import "https://cdn.jsdelivr.net/npm/w3c-keyname@2.2.4/index.es.js";
 // @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/history@0.19.2/dist/index.d.ts"
 import "https://cdn.jsdelivr.net/npm/@codemirror/history@0.19.2/dist/index.js";
 
-// @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/fold@0.19.4/dist/index.d.ts"
-import "https://cdn.jsdelivr.net/npm/@codemirror/fold@0.19.4/dist/index.js";
-
-// @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/gutter@0.19.9/dist/index.d.ts"
-import "https://cdn.jsdelivr.net/npm/@codemirror/gutter@0.19.9/dist/index.js";
-
-// @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/rangeset@0.19.9/dist/index.d.ts"
-import "https://cdn.jsdelivr.net/npm/@codemirror/rangeset@0.19.9/dist/index.js";
-
 // @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/language@6.0.0/dist/index.d.ts"
 import "https://cdn.jsdelivr.net/npm/@codemirror/language@6.0.0/dist/index.js";
 
-// @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/text@0.19.6/dist/index.d.ts"
-import "https://cdn.jsdelivr.net/npm/@codemirror/text@0.19.6/dist/index.js";
-
-// @deno-types="https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/index.d.ts"
-import "https://cdn.jsdelivr.net/npm/@lezer/common@0.15.12/dist/index.js";
-
-// @deno-types="https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/index.d.ts"
-import "https://cdn.jsdelivr.net/npm/@lezer/lr@0.15.8/dist/index.js";
+// @deno-types="https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/index.d.ts"
+import "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/index.js";
 
 // @deno-types="https://cdn.jsdelivr.net/npm/@lezer/highlight@1.0.0/dist/highlight.d.ts"
 import "https://cdn.jsdelivr.net/npm/@lezer/highlight@1.0.0/dist/index.js";
+
+// @deno-types="https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/index.d.ts"
+import "https://cdn.jsdelivr.net/npm/@lezer/lr@1.0.0/dist/index.js";
 
 // @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/commands@6.0.0/dist/index.d.ts"
 import "https://cdn.jsdelivr.net/npm/@codemirror/commands@6.0.0/dist/index.js";
@@ -172,6 +157,12 @@ import "https://cdn.jsdelivr.net/npm/@codemirror/matchbrackets@0.19.4/dist/index
 
 // @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/closebrackets@0.19.2/dist/index.d.ts"
 import "https://cdn.jsdelivr.net/npm/@codemirror/closebrackets@0.19.2/dist/index.js";
+
+// @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/rangeset@0.19.9/dist/index.d.ts"
+import "https://cdn.jsdelivr.net/npm/@codemirror/rangeset@0.19.9/dist/index.js";
+
+// @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/text@0.19.6/dist/index.d.ts"
+import "https://cdn.jsdelivr.net/npm/@codemirror/text@0.19.6/dist/index.js";
 
 // @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/search@6.0.0/dist/index.d.ts"
 import "https://cdn.jsdelivr.net/npm/@codemirror/search@6.0.0/dist/index.js";
@@ -634,7 +625,6 @@ import {
 } from "@codemirror/view";
 import { EditorState, Compartment } from "@codemirror/state";
 import { history, historyKeymap } from "@codemirror/history";
-import { foldGutter, foldKeymap } from "@codemirror/fold";
 import {
   indentOnInput,
   LanguageSupport,
@@ -659,6 +649,7 @@ import {
 class CodeEditor extends HTMLElement {
   constructor() {
     super();
+    this.attachShadow({mode: 'open'});
   }
 
   connectedCallback() {
@@ -676,7 +667,6 @@ class CodeEditor extends HTMLElement {
     const extensions = [
       highlightSpecialChars(),
       history(),
-      foldGutter(),
       drawSelection(),
       EditorState.allowMultipleSelections.of(true),
       indentOnInput(),
@@ -691,7 +681,6 @@ class CodeEditor extends HTMLElement {
         ...defaultKeymap,
         ...searchKeymap,
         ...historyKeymap,
-        ...foldKeymap,
         ...commentKeymap,
         ...completionKeymap,
         ...lintKeymap,
@@ -717,4 +706,44 @@ class CodeEditor extends HTMLElement {
   }
 }
 window.customElements.define('code-editor', CodeEditor);
+```
+
+To bundle:
+
+```
+deno bundle --import-map=import_map.json mod.ts bundle.js
+```
+
+To test it out:
+
+##### `example.html`
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <title>Markdown Editor</title>
+    <style type="text/css">
+      code-editor {
+        width: 80%;
+        margin: 5px auto;
+        min-height: 500px;
+      }
+    </style>
+  </head>
+  <body>
+    <code-editor />
+    <script type="module" src="./bundle.js"></script>
+  </body>
+</html>
+```
+
+Then run `file-server` and open it.
+
+# Build
+
+##### `.gitignore`
+
+```
+bundle.js
 ```
