@@ -17,13 +17,12 @@ These are the dependencies, built with `@codemirror/`:
   "@codemirror/lang-javascript": "*",
   "@codemirror/lang-css": "*",
   "@codemirror/lang-json": "*",
-  "@codemirror/lang-html": "*"
+  "@codemirror/lang-html": "*",
+  "@codemirror/theme-one-dark": "*"
 }
 ```
 
 These are manual additions to the import map in order to get it to build:
-
-##### `import_map_extra.json`
 
 ```json
 {
@@ -78,6 +77,7 @@ cat markdown_code_editor.md | deliver_importmaps | md_unpack_simple
     "@lezer/markdown": "https://cdn.jsdelivr.net/npm/@lezer/markdown@1.0.0/dist/index.js",
     "@codemirror/lang-json": "https://cdn.jsdelivr.net/npm/@codemirror/lang-json@6.0.0/dist/index.js",
     "@lezer/json": "https://cdn.jsdelivr.net/npm/@lezer/json@1.0.0/dist/index.es.js",
+    "@codemirror/theme-one-dark": "https://cdn.jsdelivr.net/npm/@codemirror/theme-one-dark@6.0.0/dist/index.js",
     "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/tree": "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/tree.d.ts",
     "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/parse": "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/parse.d.ts",
     "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/mix": "https://cdn.jsdelivr.net/npm/@lezer/common@1.0.0/dist/mix.d.ts",
@@ -162,6 +162,9 @@ import "https://cdn.jsdelivr.net/npm/@codemirror/lang-json@6.0.0/dist/index.js";
 
 // @deno-types="https://cdn.jsdelivr.net/npm/@lezer/json@1.0.0/dist/index.d.ts"
 import "https://cdn.jsdelivr.net/npm/@lezer/json@1.0.0/dist/index.es.js";
+
+// @deno-types="https://cdn.jsdelivr.net/npm/@codemirror/theme-one-dark@6.0.0/dist/index.d.ts"
+import "https://cdn.jsdelivr.net/npm/@codemirror/theme-one-dark@6.0.0/dist/index.js";
 ```
 
 ##### `deno.json`
@@ -268,8 +271,10 @@ import {
   highlightSpecialChars,
   drawSelection,
   highlightActiveLine,
+  highlightActiveLineGutter,
   keymap,
   placeholder,
+  crosshairCursor,
   rectangularSelection,
 } from "@codemirror/view";
 import { EditorState } from "@codemirror/state";
@@ -278,8 +283,6 @@ import {
   LanguageSupport,
   LanguageDescription,
   bracketMatching,
-  syntaxHighlighting,
-  defaultHighlightStyle,
 } from "@codemirror/language";
 import {
   defaultKeymap,
@@ -294,6 +297,7 @@ import {
   closeBracketsKeymap,
 } from "@codemirror/autocomplete";
 import { lintKeymap } from "@codemirror/lint";
+import { oneDark } from "@codemirror/theme-one-dark";
 import { language } from "./language.ts";
 
 class CodeEditor extends HTMLElement {
@@ -308,6 +312,7 @@ class CodeEditor extends HTMLElement {
     const markdownLanguage = language();
 
     const extensions = [
+      highlightActiveLineGutter(),
       highlightSpecialChars(),
       history(),
       drawSelection(),
@@ -317,6 +322,7 @@ class CodeEditor extends HTMLElement {
       closeBrackets(),
       autocompletion({activateOnTyping: false}),
       rectangularSelection(),
+      crosshairCursor(),
       highlightActiveLine(),
       highlightSelectionMatches(),
       keymap.of([
@@ -329,7 +335,7 @@ class CodeEditor extends HTMLElement {
       ]),
       markdownLanguage,
       EditorView.lineWrapping,
-      syntaxHighlighting(defaultHighlightStyle, { fallback: true }),
+      oneDark,
       placeholder("# Enter some markdown here..."),
       /*EditorView.updateListener.of((v) => {
         if (v.docChanged) {
@@ -370,6 +376,9 @@ To test it out:
         width: 80%;
         margin: 5px auto;
         min-height: 500px;
+      }
+      html, body {
+        background-color: #000;
       }
     </style>
   </head>
