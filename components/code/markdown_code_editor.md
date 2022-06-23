@@ -1,11 +1,242 @@
 # Markdown Code Editor
 
+## Language
+
+This is a language for highlighting that supports nested Markdown.
+
+##### `language.ts`
+
+```ts
+import "./typed_imports.ts";
+import {
+  LanguageSupport,
+  LanguageDescription,
+} from "@codemirror/language";
+import { markdown } from "@codemirror/lang-markdown";
+import { jsxLanguage, tsxLanguage } from "@codemirror/lang-javascript";
+import { cssLanguage } from "@codemirror/lang-css";
+import { jsonLanguage } from "@codemirror/lang-json";
+import { htmlLanguage } from "@codemirror/lang-html";
+
+export function language() {
+  const jsxSupport = new LanguageSupport(jsxLanguage);
+  const tsSupport = new LanguageSupport(tsxLanguage);
+  const cssSupport = new LanguageSupport(cssLanguage);
+  const jsonSupport = new LanguageSupport(jsonLanguage);
+  const htmlSupport = new LanguageSupport(htmlLanguage);
+  const codeLanguages = [
+    LanguageDescription.of({
+      name: "javascript",
+      alias: ["js", "jsx"],
+      support: jsxSupport,
+    }),
+    LanguageDescription.of({
+      name: "typescript",
+      alias: ["ts", "tsx"],
+      support: tsSupport,
+    }),
+    LanguageDescription.of({
+      name: "css",
+      support: cssSupport,
+    }),
+    LanguageDescription.of({
+      name: "json",
+      support: jsonSupport,
+    }),
+    LanguageDescription.of({
+      name: "html",
+      alias: ["htm"],
+      support: htmlSupport,
+    }),
+  ];
+
+  const markdownRoot = markdown({
+    codeLanguages,
+  });
+
+  const markdownNested = markdown({
+    codeLanguages: [
+      ...codeLanguages,
+      LanguageDescription.of({
+        name: "markdown",
+        alias: ["md", "mkd"],
+        support: markdownRoot,
+      }),
+    ],
+  });
+
+  const markdownDoubleNested = markdown({
+    codeLanguages: [
+      ...codeLanguages,
+      LanguageDescription.of({
+        name: "markdown",
+        alias: ["md", "mkd"],
+        support: markdownNested,
+      }),
+    ],
+  });
+  
+  return markdown({
+    codeLanguages: [
+      ...codeLanguages,
+      LanguageDescription.of({
+        name: "markdown",
+        alias: ["md", "mkd"],
+        support: markdownDoubleNested,
+      }),
+    ],
+  });
+}
+```
+
+## Code Editor Web Component
+
+This has the plugins from the CodeMirror Basic setup with some customizations to
+make a code editor for Markdown.
+
+##### `mod.ts`
+
+```ts
+import "./typed_imports.ts";
+import {
+  EditorView,
+  highlightSpecialChars,
+  drawSelection,
+  highlightActiveLine,
+  highlightActiveLineGutter,
+  keymap,
+  placeholder,
+  crosshairCursor,
+  rectangularSelection,
+} from "@codemirror/view";
+import { EditorState } from "@codemirror/state";
+import {
+  indentOnInput,
+  LanguageSupport,
+  LanguageDescription,
+  bracketMatching,
+  codeFolding,
+  foldGutter,
+  foldKeymap,
+} from "@codemirror/language";
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+} from "@codemirror/commands";
+import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import {
+  autocompletion,
+  completionKeymap,
+  closeBrackets,
+  closeBracketsKeymap,
+} from "@codemirror/autocomplete";
+import { lintKeymap } from "@codemirror/lint";
+import { oneDark } from "@codemirror/theme-one-dark";
+import { language } from "./language.ts";
+
+class CodeEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({mode: 'open'});
+  }
+
+  connectedCallback() {
+    const isDark = true;
+
+    const markdownLanguage = language();
+
+    const extensions = [
+      codeFolding(),
+      foldGutter(),
+      highlightActiveLineGutter(),
+      highlightSpecialChars(),
+      history(),
+      drawSelection(),
+      EditorState.allowMultipleSelections.of(true),
+      indentOnInput(),
+      bracketMatching(),
+      closeBrackets(),
+      autocompletion({activateOnTyping: false}),
+      rectangularSelection(),
+      crosshairCursor(),
+      highlightActiveLine(),
+      highlightSelectionMatches(),
+      keymap.of([
+        ...closeBracketsKeymap,
+        ...defaultKeymap,
+        ...searchKeymap,
+        ...historyKeymap,
+        ...completionKeymap,
+        ...foldKeymap,
+        ...lintKeymap,
+      ]),
+      markdownLanguage,
+      EditorView.lineWrapping,
+      oneDark,
+      placeholder("# Enter some markdown here..."),
+      /*EditorView.updateListener.of((v) => {
+        if (v.docChanged) {
+          //ctx.emit("change", editor.state.doc);
+        }
+      }),*/
+    ];
+
+    const editor = new EditorView({
+      state: EditorState.create({
+        doc: ''/*props.page.body*/,
+        extensions,
+      }),
+      parent: this.shadowRoot,
+    });
+  }
+}
+window.customElements.define('code-editor', CodeEditor);
+```
+
+To bundle:
+
+```
+deno bundle --import-map=import_map.json mod.ts bundle.js
+```
+
+To test it out:
+
+##### `example.html`
+
+```html
+<!doctype html>
+<html>
+  <head>
+    <title>Markdown Editor</title>
+    <style type="text/css">
+      code-editor {
+        width: 80%;
+        margin: 5px auto;
+        min-height: 500px;
+      }
+      html, body {
+        background-color: #000;
+      }
+    </style>
+  </head>
+  <body>
+    <code-editor />
+    <script type="module" src="./bundle.js"></script>
+  </body>
+</html>
+```
+
+Then run `file-server` and open it.
+
+# Build
+
 These are the dependencies, built with `@codemirror/`:
 
 ##### `dependencies.json`
 
 ```json
-{  
+{
   "@codemirror/view": "*",
   "@codemirror/state": "*",
   "@codemirror/language": "*",
@@ -176,222 +407,6 @@ import "https://cdn.jsdelivr.net/npm/@codemirror/theme-one-dark@6.0.0/dist/index
   }
 }
 ```
-
-##### `language.ts`
-
-```ts
-import "./typed_imports.ts";
-import {
-  LanguageSupport,
-  LanguageDescription,
-} from "@codemirror/language";
-import { markdown } from "@codemirror/lang-markdown";
-import { jsxLanguage, tsxLanguage } from "@codemirror/lang-javascript";
-import { cssLanguage } from "@codemirror/lang-css";
-import { jsonLanguage } from "@codemirror/lang-json";
-import { htmlLanguage } from "@codemirror/lang-html";
-
-export function language() {
-  const jsxSupport = new LanguageSupport(jsxLanguage);
-  const tsSupport = new LanguageSupport(tsxLanguage);
-  const cssSupport = new LanguageSupport(cssLanguage);
-  const jsonSupport = new LanguageSupport(jsonLanguage);
-  const htmlSupport = new LanguageSupport(htmlLanguage);
-  const codeLanguages = [
-    LanguageDescription.of({
-      name: "javascript",
-      alias: ["js", "jsx"],
-      support: jsxSupport,
-    }),
-    LanguageDescription.of({
-      name: "typescript",
-      alias: ["ts", "tsx"],
-      support: tsSupport,
-    }),
-    LanguageDescription.of({
-      name: "css",
-      support: cssSupport,
-    }),
-    LanguageDescription.of({
-      name: "json",
-      support: jsonSupport,
-    }),
-    LanguageDescription.of({
-      name: "html",
-      alias: ["htm"],
-      support: htmlSupport,
-    }),
-  ];
-
-  const markdownRoot = markdown({
-    codeLanguages,
-  });
-
-  const markdownNested = markdown({
-    codeLanguages: [
-      ...codeLanguages,
-      LanguageDescription.of({
-        name: "markdown",
-        alias: ["md", "mkd"],
-        support: markdownRoot,
-      }),
-    ],
-  });
-
-  const markdownDoubleNested = markdown({
-    codeLanguages: [
-      ...codeLanguages,
-      LanguageDescription.of({
-        name: "markdown",
-        alias: ["md", "mkd"],
-        support: markdownNested,
-      }),
-    ],
-  });
-  
-  return markdown({
-    codeLanguages: [
-      ...codeLanguages,
-      LanguageDescription.of({
-        name: "markdown",
-        alias: ["md", "mkd"],
-        support: markdownDoubleNested,
-      }),
-    ],
-  });
-}
-```
-
-##### `mod.ts`
-
-```ts
-import "./typed_imports.ts";
-import {
-  EditorView,
-  highlightSpecialChars,
-  drawSelection,
-  highlightActiveLine,
-  highlightActiveLineGutter,
-  keymap,
-  placeholder,
-  crosshairCursor,
-  rectangularSelection,
-} from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
-import {
-  indentOnInput,
-  LanguageSupport,
-  LanguageDescription,
-  bracketMatching,
-} from "@codemirror/language";
-import {
-  defaultKeymap,
-  history,
-  historyKeymap,
-} from "@codemirror/commands";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
-import {
-  autocompletion,
-  completionKeymap,
-  closeBrackets,
-  closeBracketsKeymap,
-} from "@codemirror/autocomplete";
-import { lintKeymap } from "@codemirror/lint";
-import { oneDark } from "@codemirror/theme-one-dark";
-import { language } from "./language.ts";
-
-class CodeEditor extends HTMLElement {
-  constructor() {
-    super();
-    this.attachShadow({mode: 'open'});
-  }
-
-  connectedCallback() {
-    const isDark = true;
-
-    const markdownLanguage = language();
-
-    const extensions = [
-      highlightActiveLineGutter(),
-      highlightSpecialChars(),
-      history(),
-      drawSelection(),
-      EditorState.allowMultipleSelections.of(true),
-      indentOnInput(),
-      bracketMatching(),
-      closeBrackets(),
-      autocompletion({activateOnTyping: false}),
-      rectangularSelection(),
-      crosshairCursor(),
-      highlightActiveLine(),
-      highlightSelectionMatches(),
-      keymap.of([
-        ...closeBracketsKeymap,
-        ...defaultKeymap,
-        ...searchKeymap,
-        ...historyKeymap,
-        ...completionKeymap,
-        ...lintKeymap,
-      ]),
-      markdownLanguage,
-      EditorView.lineWrapping,
-      oneDark,
-      placeholder("# Enter some markdown here..."),
-      /*EditorView.updateListener.of((v) => {
-        if (v.docChanged) {
-          //ctx.emit("change", editor.state.doc);
-        }
-      }),*/
-    ];
-
-    const editor = new EditorView({
-      state: EditorState.create({
-        doc: ''/*props.page.body*/,
-        extensions,
-      }),
-      parent: this.shadowRoot,
-    });
-  }
-}
-window.customElements.define('code-editor', CodeEditor);
-```
-
-To bundle:
-
-```
-deno bundle --import-map=import_map.json mod.ts bundle.js
-```
-
-To test it out:
-
-##### `example.html`
-
-```html
-<!doctype html>
-<html>
-  <head>
-    <title>Markdown Editor</title>
-    <style type="text/css">
-      code-editor {
-        width: 80%;
-        margin: 5px auto;
-        min-height: 500px;
-      }
-      html, body {
-        background-color: #000;
-      }
-    </style>
-  </head>
-  <body>
-    <code-editor />
-    <script type="module" src="./bundle.js"></script>
-  </body>
-</html>
-```
-
-Then run `file-server` and open it.
-
-# Build
 
 ##### `.gitignore`
 
