@@ -1,5 +1,7 @@
 # Markdown Code Editor
 
+This is a component for editing Markdown with languages inside code blocks.
+
 ## Language
 
 This is a language for highlighting that supports nested Markdown.
@@ -89,15 +91,14 @@ export function language() {
 }
 ```
 
-## Code Editor Web Component
+## Extensions
 
-This has the plugins from the CodeMirror Basic setup with some customizations to
-make a code editor for Markdown.
-
-##### `mod.ts`
+##### `extensions.ts`
 
 ```ts
 import "./typed_imports.ts";
+
+import { EditorState } from "@codemirror/state";
 import {
   EditorView,
   highlightSpecialChars,
@@ -105,11 +106,9 @@ import {
   highlightActiveLine,
   highlightActiveLineGutter,
   keymap,
-  placeholder,
   crosshairCursor,
   rectangularSelection,
 } from "@codemirror/view";
-import { EditorState } from "@codemirror/state";
 import {
   indentOnInput,
   LanguageSupport,
@@ -133,7 +132,54 @@ import {
 } from "@codemirror/autocomplete";
 import { lintKeymap } from "@codemirror/lint";
 import { oneDark } from "@codemirror/theme-one-dark";
+
+export function baseExtensions() {
+  return [
+    codeFolding(),
+    foldGutter(),
+    highlightActiveLineGutter(),
+    highlightSpecialChars(),
+    history(),
+    drawSelection(),
+    EditorState.allowMultipleSelections.of(true),
+    indentOnInput(),
+    bracketMatching(),
+    closeBrackets(),
+    autocompletion({activateOnTyping: false}),
+    rectangularSelection(),
+    crosshairCursor(),
+    highlightActiveLine(),
+    highlightSelectionMatches(),
+    keymap.of([
+      ...closeBracketsKeymap,
+      ...defaultKeymap,
+      ...searchKeymap,
+      ...historyKeymap,
+      ...completionKeymap,
+      ...foldKeymap,
+      ...lintKeymap,
+    ]),
+    EditorView.lineWrapping,
+    oneDark,
+  ]
+}
+```
+
+## Code Editor Web Component
+
+This has the plugins from the [CodeMirror Basic](https://cdn.jsdelivr.net/npm/codemirror@6.0.0/dist/index.js)
+setup with some customizations to make a code editor for Markdown.
+
+##### `mod.ts`
+
+```ts
+import "./typed_imports.ts";
+
+import { EditorState } from "@codemirror/state";
+import { EditorView, placeholder } from "@codemirror/view";
+
 import { language } from "./language.ts";
+import { baseExtensions } from "./extensions.ts";
 
 class CodeEditor extends HTMLElement {
   constructor() {
@@ -147,33 +193,8 @@ class CodeEditor extends HTMLElement {
     const markdownLanguage = language();
 
     const extensions = [
-      codeFolding(),
-      foldGutter(),
-      highlightActiveLineGutter(),
-      highlightSpecialChars(),
-      history(),
-      drawSelection(),
-      EditorState.allowMultipleSelections.of(true),
-      indentOnInput(),
-      bracketMatching(),
-      closeBrackets(),
-      autocompletion({activateOnTyping: false}),
-      rectangularSelection(),
-      crosshairCursor(),
-      highlightActiveLine(),
-      highlightSelectionMatches(),
-      keymap.of([
-        ...closeBracketsKeymap,
-        ...defaultKeymap,
-        ...searchKeymap,
-        ...historyKeymap,
-        ...completionKeymap,
-        ...foldKeymap,
-        ...lintKeymap,
-      ]),
+      ...baseExtensions(),
       markdownLanguage,
-      EditorView.lineWrapping,
-      oneDark,
       placeholder("# Enter some markdown here..."),
       /*EditorView.updateListener.of((v) => {
         if (v.docChanged) {
