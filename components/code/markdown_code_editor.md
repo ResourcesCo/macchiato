@@ -10,10 +10,7 @@ This is a language for highlighting that supports nested Markdown.
 
 ```ts
 import "./typed_imports.ts";
-import {
-  LanguageSupport,
-  LanguageDescription,
-} from "@codemirror/language";
+import { LanguageDescription, LanguageSupport } from "@codemirror/language";
 import { markdown } from "@codemirror/lang-markdown";
 import { jsxLanguage, tsxLanguage } from "@codemirror/lang-javascript";
 import { cssLanguage } from "@codemirror/lang-css";
@@ -77,7 +74,7 @@ export function language() {
       }),
     ],
   });
-  
+
   return markdown({
     codeLanguages: [
       ...codeLanguages,
@@ -100,35 +97,31 @@ import "./typed_imports.ts";
 
 import { EditorState } from "@codemirror/state";
 import {
-  EditorView,
-  highlightSpecialChars,
+  crosshairCursor,
   drawSelection,
+  EditorView,
   highlightActiveLine,
   highlightActiveLineGutter,
+  highlightSpecialChars,
   keymap,
-  crosshairCursor,
   rectangularSelection,
 } from "@codemirror/view";
 import {
-  indentOnInput,
-  LanguageSupport,
-  LanguageDescription,
   bracketMatching,
   codeFolding,
   foldGutter,
   foldKeymap,
+  indentOnInput,
+  LanguageDescription,
+  LanguageSupport,
 } from "@codemirror/language";
-import {
-  defaultKeymap,
-  history,
-  historyKeymap,
-} from "@codemirror/commands";
-import { searchKeymap, highlightSelectionMatches } from "@codemirror/search";
+import { defaultKeymap, history, historyKeymap } from "@codemirror/commands";
+import { highlightSelectionMatches, searchKeymap } from "@codemirror/search";
 import {
   autocompletion,
-  completionKeymap,
   closeBrackets,
   closeBracketsKeymap,
+  completionKeymap,
 } from "@codemirror/autocomplete";
 import { lintKeymap } from "@codemirror/lint";
 import { oneDark } from "@codemirror/theme-one-dark";
@@ -145,7 +138,7 @@ export function baseExtensions() {
     indentOnInput(),
     bracketMatching(),
     closeBrackets(),
-    autocompletion({activateOnTyping: false}),
+    autocompletion({ activateOnTyping: false }),
     rectangularSelection(),
     crosshairCursor(),
     highlightActiveLine(),
@@ -161,7 +154,7 @@ export function baseExtensions() {
     ]),
     EditorView.lineWrapping,
     oneDark,
-  ]
+  ];
 }
 ```
 
@@ -182,9 +175,16 @@ import { language } from "./language.ts";
 import { baseExtensions } from "./extensions.ts";
 
 class CodeEditor extends HTMLElement {
+  editor?: EditorView;
+
   constructor() {
     super();
-    this.attachShadow({mode: 'open'});
+    const shadowRoot = this.attachShadow({ mode: "open" });
+    const style = document.createElement('style');
+    style.textContent = `
+      .cm-editor { height: 100%; width: 100%; }
+    `;
+    shadowRoot.append(style);
   }
 
   connectedCallback() {
@@ -203,16 +203,16 @@ class CodeEditor extends HTMLElement {
       }),*/
     ];
 
-    const editor = new EditorView({
+    this.editor = new EditorView({
       state: EditorState.create({
-        doc: ''/*props.page.body*/,
+        doc: "", /*props.page.body*/
         extensions,
       }),
       parent: this.shadowRoot,
     });
   }
 }
-window.customElements.define('code-editor', CodeEditor);
+window.customElements.define("code-editor", CodeEditor);
 ```
 
 To bundle:
@@ -231,18 +231,30 @@ To test it out:
   <head>
     <title>Markdown Editor</title>
     <style type="text/css">
-      code-editor {
-        width: 80%;
-        margin: 5px auto;
-        min-height: 500px;
-      }
       html, body {
         background-color: #000;
+        height: 1em;
+        margin: 0;
+        padding: 0;
+      }
+      .wrap {
+        height: 100vh;
+        display: flex;
+        align-items: stretch;
+      }
+      code-editor {
+        flex-grow: 1;
+      }
+      .cm-editor {
+        height: 100%;
+        width: 100%;
       }
     </style>
   </head>
   <body>
-    <code-editor />
+    <div class="wrap">
+      <code-editor></code-editor>
+    </div>
     <script type="module" src="./bundle.js"></script>
   </body>
 </html>
