@@ -174,7 +174,7 @@ import { EditorView, placeholder } from "@codemirror/view";
 import { language } from "./language.ts";
 import { baseExtensions } from "./extensions.ts";
 
-class CodeEditor extends HTMLElement {
+export class CodeEditor extends HTMLElement {
   editor?: EditorView;
 
   constructor() {
@@ -188,21 +188,7 @@ class CodeEditor extends HTMLElement {
   }
 
   connectedCallback() {
-    const isDark = true;
-
-    const markdownLanguage = language();
-
-    const extensions = [
-      ...baseExtensions(),
-      markdownLanguage,
-      placeholder("# Enter some markdown here..."),
-      /*EditorView.updateListener.of((v) => {
-        if (v.docChanged) {
-          //ctx.emit("change", editor.state.doc);
-        }
-      }),*/
-    ];
-
+    const extensions = this.getExtensions();
     this.editor = new EditorView({
       state: EditorState.create({
         doc: "", /*props.page.body*/
@@ -211,8 +197,20 @@ class CodeEditor extends HTMLElement {
       parent: this.shadowRoot,
     });
   }
+
+  getExtensions() {
+    return [
+      ...baseExtensions(),
+      language(),
+      placeholder("# Enter some markdown here..."),
+      /*EditorView.updateListener.of((v) => {
+        if (v.docChanged) {
+          //ctx.emit("change", editor.state.doc);
+        }
+      }),*/
+    ]
+  }
 }
-window.customElements.define("code-editor", CodeEditor);
 ```
 
 To bundle:
@@ -222,6 +220,20 @@ deno bundle --import-map=import_map.json mod.ts bundle.js
 ```
 
 To test it out:
+
+##### `example.js`
+
+```js
+import { CodeEditor } from "./bundle.js";
+
+window.addEventListener('DOMContentLoaded', (event) => {
+  const editorEl = document.querySelector('code-editor');
+  console.log(editorEl);
+});
+
+window.customElements.define("code-editor", CodeEditor);
+```
+
 
 ##### `example.html`
 
@@ -255,7 +267,7 @@ To test it out:
     <div class="wrap">
       <code-editor></code-editor>
     </div>
-    <script type="module" src="./bundle.js"></script>
+    <script type="module" src="./example.js"></script>
   </body>
 </html>
 ```
